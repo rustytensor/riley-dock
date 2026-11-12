@@ -1,0 +1,22 @@
+{
+  "SPDX-License-Identifier": "GPL-3.0-or-later",
+  "bar_background": "#1a1b26b8",
+  "bar_foreground": "#c0caf5",
+  "bar_border": "#7aa2f759",
+  "bar_border_width": 1,
+  "bar_radius": 18,
+  "accent": "#7aa2f7",
+  "shelf": "#7aa2f72e",
+  "active_line": "#7aa2f7",
+  "active_line_width": 3,
+  "name_background": "#1a1b26f0",
+  "name_foreground": "#c0caf5",
+  "name_border": "#7aa2f74d",
+  "name_border_width": 1,
+  "name_radius": 8,
+  "name_padding_x": 11,
+  "name_padding_y": 4,
+  "name_font_family": "Inter",
+  "name_font_size": 12,
+  "menu_padding": 6
+}

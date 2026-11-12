@@ -1,6 +1,6 @@
 # Files Riley writes for the dock
 
-Riley's Settings (Dock page) and its theme switcher write three files that the dock reads. This page is the contract
+Riley's Settings (Dock page) and its theme switcher write the files that the dock reads. This page is the contract
 between the two repositories: what each file holds, how the dock reads it, and how a writer must replace it. Every rule
 cites the Rust dock it comes from (riley `dock/src/<file>.rs:<line>`); the C++ core in `src/core/` ports the same rules
 function for function and is checked against the Rust tests by `tests/run-core.sh`.
@@ -13,7 +13,8 @@ dock/src/ui.rs:75-77).
 |---|---|---|---|
 | Dock config | `nwg-dock-hyprland/riley.conf` (under `$XDG_CONFIG_HOME`) | Settings > Dock | at start, then again whenever it changes |
 | Pins | `nwg-dock-pinned` (under `$XDG_CACHE_HOME`) | Settings > Dock, and the dock itself (right-click Pin / Unpin) | at start, then again whenever it changes |
-| Style | `riley-dock/style.css` (under `$XDG_CONFIG_HOME`) | the theme switcher | at start, then again whenever it changes |
+| Style (Rust dock) | `riley-dock/style.css` (under `$XDG_CONFIG_HOME`) | the theme switcher | at start, then again whenever it changes |
+| Style (Qt dock) | `riley-dock/style.json` (under `$XDG_CONFIG_HOME`) | the theme switcher, from milestone 3 | at start, then again whenever it changes |
 
 ## 1. Dock config: `nwg-dock-hyprland/riley.conf`
 
@@ -139,13 +140,112 @@ key, and appends `KEY=value\n` when the key is missing.
 - Other writers must also replace the file by a rename from the same folder, never by writing it in place. Settings
   writes `nwg-dock-pinned.new` and renames it over the file (riley settings/riley_settings/dock_core.py:19-23).
 
-## 3. Style: `riley-dock/style.css`
+## 3. Style
+
+### 3.1 Rust dock: `riley-dock/style.css`
 
 - The current Rust dock reads **GTK CSS** from `riley-dock/style.css` (riley dock/src/ui.rs:84-86). The theme switcher
-  writes it (riley bin/hypr-theme.py:322).
+  writes it (riley bin/hypr-theme.py:321-334).
 - If the file cannot be read, the dock uses the built-in example style (riley dock/src/ui.rs:282-285,
   `dock/style.example.css`).
 - The dock watches the file and reloads it on every change (riley dock/src/ui.rs:207-217).
-- GTK CSS does not apply to Qt Quick. The Qt dock's style format (colours and fonts, as a small JSON or INI file, with
-  its path and its fallback) is defined in milestone 2; the theme switcher will then write that file instead. Until the
-  switch to the Qt dock, the theme switcher keeps writing `riley-dock/style.css` for the Rust dock.
+- Until the switch to the Qt dock (milestone 3), the theme switcher keeps writing this file for the Rust dock.
+
+### 3.2 Qt dock: `riley-dock/style.json`
+
+GTK CSS does not apply to Qt Quick. The Qt dock reads its colours, fonts and the few sizes the Rust dock takes from
+its CSS from a small JSON file, `riley-dock/style.json` under `$XDG_CONFIG_HOME` (falling back to `$HOME/.config`),
+next to the CSS file. From milestone 3 the theme switcher writes it from the same theme values it uses for the CSS
+today. `style.example.json` at the top of this repository holds the defaults; they equal riley
+`dock/style.example.css`.
+
+#### Format
+
+- One UTF-8 JSON object. Keys are the names below; their order does not matter. Unknown keys are ignored (the example
+  file's first key, `SPDX-License-Identifier`, is one of them).
+- **Colour**: a string `#rrggbb` (opaque) or `#rrggbbaa`, hexadecimal digits in either case. The alpha byte comes
+  **last**, as in CSS; this is not Qt's `#aarrggbb` string form, and the dock parses it itself. A CSS
+  `alpha(#rrggbb, a)` or `rgba(r, g, b, a)` becomes `aa = floor(a * 255 + 0.5)` (0.72 -> `b8`, 0.35 -> `59`,
+  0.18 -> `2e`, 0.94 -> `f0`, 0.3 -> `4d`); note that Python's `round()` rounds 76.5 down, so writers use the formula.
+  Names (`red`), `#rgb` and `rgba(...)` are bad values.
+- **Size**: a JSON integer, in logical pixels (CSS `px`), at least 0. A font size is a pixel size (Qt
+  `font.pixelSize`, CSS `font-size: 12px`) and must be at least 1.
+- **Font family**: a non-empty string, one family name without quotes (`Inter`). When the family is not installed, Qt's
+  font matching picks a sans-serif face, as the CSS fallback `Inter, sans-serif` does.
+
+#### Keys
+
+Every property the Rust dock's CSS actually uses, with its CSS source (riley `dock/style.example.css`, line) and where
+the Rust dock uses it.
+
+| Key | Type | Default | Meaning | CSS (style.example.css) | Rust use |
+|---|---|---|---|---|---|
+| `bar_background` | colour | `#1a1b26b8` | Fill of the bar's glass | `.dock-bar` `background: alpha(#1a1b26, 0.72)` (:4) | view.rs:63, :90 |
+| `bar_foreground` | colour | `#c0caf5` | Colour of symbolic icons and of the app-grid button's dots at rest | `.dock-bar` `color` (:5) | view.rs:121, :135, :159-176 |
+| `bar_border` | colour | `#7aa2f759` | The bar's outline | `.dock-bar` `border: 1px solid alpha(#7aa2f7, 0.35)` (:6) | view.rs:90 |
+| `bar_border_width` | size | `1` | Width of that outline | same (:6) | view.rs:90 |
+| `bar_radius` | size | `18` | Corner radius of the bar | `.dock-bar` `border-radius` (:7) | view.rs:90 |
+| `accent` | colour | `#7aa2f7` | Running-app dots, the auto-hide lip dots and the app-grid button's hover colour | `.dock-indicator` `color` (:16) | view.rs:89, :93, :141, :164-166 |
+| `shelf` | colour | `#7aa2f72e` | The 1 px shelf line the reflections stand on | `.dock-shelf` `background: alpha(#7aa2f7, 0.18)` (:15) | view.rs:64-67, :126 |
+| `active_line` | colour | `#7aa2f7` | The line under the focused app | `.dock-item.active` `border-bottom: 3px solid #7aa2f7` (:17) | view.rs:68-77, :154 |
+| `active_line_width` | size | `3` | Thickness of that line | same (:17) | view.rs:68-77 |
+| `name_background` | colour | `#1a1b26f0` | Fill of the hover name label | `.dock-name` `background: alpha(#1a1b26, 0.94)` (:25) | ui.rs:105-117 |
+| `name_foreground` | colour | `#c0caf5` | Text colour of the name label | `.dock-name` `color` (:25) | ui.rs:115-116 |
+| `name_border` | colour | `#7aa2f74d` | Outline of the name label | `.dock-name` `border: 1px solid alpha(#7aa2f7, 0.3)` (:26) | ui.rs:115-116 |
+| `name_border_width` | size | `1` | Width of that outline | same (:26) | ui.rs:115-116 |
+| `name_radius` | size | `8` | Corner radius of the name label | `.dock-name` `border-radius` (:26) | ui.rs:115-116 |
+| `name_padding_x` | size | `11` | Left and right padding inside the name label | `.dock-name` `padding: 4px 11px` (:27) | ui.rs:115-116 |
+| `name_padding_y` | size | `4` | Top and bottom padding inside the name label | same (:27) | ui.rs:115-116 |
+| `name_font_family` | font family | `Inter` | Font of the name label | `.dock-name` `font-family: Inter, sans-serif` (:27) | ui.rs:115-116 |
+| `name_font_size` | size (pixels) | `12` | Font size of the name label | `.dock-name` `font-size: 12px` (:27) | ui.rs:115-116 |
+| `menu_padding` | size | `6` | Padding inside the right-click menu | `.dock-menu` `padding` (:29) | ui.rs:766 |
+
+The theme switcher's values for the same keys today: `bar_background` and `name_background` are the theme's `bg`
+(alpha 0.72 and 0.94), `bar_foreground` and `name_foreground` its `fg_bright`, `accent`, `active_line` and `shelf`
+its `accent` (alpha 1, 1 and 0.18), `bar_border` and `name_border` its `accent` (alpha 0.35 and 0.3), and
+`name_font_family` the theme's dock font, `Inter` by default (riley bin/hypr-theme.py:62, :321-334). Its font-only
+update (riley bin/hypr-theme.py:107-108) changes `name_font_family` alone.
+
+#### CSS that is not carried over
+
+These rules are in the CSS but change nothing the Rust dock draws, so the JSON file has no key for them:
+
+- `window.dock-window, window.dock-name-window { background: transparent }` (:2): the Qt dock's surfaces are always
+  transparent.
+- `.dock-bar { padding: 6px 10px }` (:8): the bar is an empty box placed at the computed bar rectangle (riley
+  dock/src/view.rs:63, :199-202), so padding paints nothing; the bar's geometry comes from the dock's layout rules.
+- `.dock-item` and `.dock-item:hover, .dock-item:active` (:10-11): they reset the box of the focused-app line, which
+  can never be hovered or pressed (riley dock/src/view.rs:213-219). The line's size and place are fixed by the dock
+  (riley dock/src/view.rs:72-76).
+- `.dock-icon`, `.dock-item:hover .dock-icon`, `.dock-item:active .dock-icon`, `@keyframes dock-bounce` and
+  `.dock-item.launching .dock-icon` (:12-14, :18-23): no widget of the Rust dock has the `dock-icon` or `launching`
+  class (the classes it sets are in riley dock/src/ui.rs:94, :106, :116, :766 and dock/src/view.rs:200-215); the
+  swell, press and launch bounce are computed by the dock. The theme switcher does not write these rules either
+  (riley bin/hypr-theme.py:322-334).
+- `.dock-indicator { font-size: 10px; min-height: 8px }` (:16): the indicator label is never shown; only its colour
+  is read (riley dock/src/view.rs:89, :203-212).
+- `.dock-shelf { min-height: 1px }` (:15): the shelf is placed at its computed rectangle (riley dock/src/view.rs:67).
+
+#### Missing file, missing key, bad value
+
+- **Missing file**: every key takes its default, with no message, as the Rust dock falls back to its built-in example
+  style (riley dock/src/ui.rs:282-285).
+- **Unreadable file, invalid JSON, or JSON that is not an object**: every key takes its default, and the dock logs one
+  line to its log (`riley/dock.log` under `$XDG_STATE_HOME`, as riley dock/src/main.rs:16-22).
+- **Missing key**: that key takes its default; the others keep their values.
+- **Bad value** (wrong JSON type, a colour that is not `#rrggbb` or `#rrggbbaa`, a negative or fractional size, a font
+  size of 0, an empty font family): that key alone takes its default, and the dock logs one line naming the key. GTK
+  does the same for a bad CSS declaration, which it skips while keeping the others.
+
+#### When the dock reads it
+
+At start, then again whenever it changes: the dock watches the file, including a replace by rename, re-reads the whole
+file, applies the rules above again (so a key that was removed goes back to its default) and redraws. The Rust dock
+does the same with its CSS (riley dock/src/ui.rs:207-217: a file monitor with moves, `load_css`, then a redraw of every
+dock). The style never changes the surface size, the input region or the reserved space, so a reload never moves
+tiled windows.
+
+#### How a writer replaces it
+
+As the dock config (section 1): write the whole new file to a temporary file in the same folder, flush and `fsync`
+it, then rename it over `style.json`, so the dock never reads a half-written file.
