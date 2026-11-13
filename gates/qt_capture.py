@@ -3,9 +3,11 @@
 
 This ports the Rust dock's four capture gates (riley dock/gates/surface.py, reflections_capture.py,
 launcher_capture.py, autohide_capture.py) so that they run against any dock binary with the same command line
-(--output NAME, --no-swell, --control-socket PATH, --show), the same layer namespace and the same config, pins and
-style files. The Qt dock decides PASS or FAIL. The Rust dock, when given, runs each scenario first in the same run:
-the Qt dock's surface sizes must equal its sizes, and its own checks are printed as REF lines.
+(--output NAME, --no-swell, --control-socket PATH, --show) and the same pins file. The Qt dock decides PASS or FAIL.
+The reference is Hyprswell (the Rust dock's successor, its own repository since 2026-11-12): when given, it runs each
+scenario first in the same run, with its own names (layer namespace hyprswell, config
+nwg-dock-hyprland/hyprswell.conf, style hyprswell/style.css). The Qt dock's surface sizes must equal its sizes, and its
+own checks are printed as REF lines.
 
 Safety, for a live session:
 - Hyprland is only queried, read only (layers, monitors, cursorpos, clients). Nothing is dispatched.
@@ -41,6 +43,8 @@ from xml.sax.saxutils import escape
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = 'DP-2'
 NAMESPACE = 'riley-dock'
+REFERENCE_NAMESPACE = 'hyprswell'   # Hyprswell's layer (hyprswell src/ui.rs:97)
+REFERENCE_CONFIG = 'nwg-dock-hyprland/hyprswell.conf'   # hyprswell src/ui.rs:77
 MARKER_NAMESPACE = 'riley-dock-test-marker'   # gates/pointer: the red ring's layer; never a dock layer
 PROGRAM = 'riley-dock-qt'
 # The only Hyprland requests this gate makes; all four are read-only queries.
@@ -67,7 +71,7 @@ DIAGNOSTICS_SURFACE = ('CRITICAL', 'panicked', 'Theme parser error')     # riley
 HIDDEN_ZONE = 6             # riley dock/gates/autohide_capture.py:61-62 (hidden reservation is exactly 6 px)
 REST_ZONE = 86              # recorded Rust DP-2 capture, 2026-11-12 (reflections rest and launcher captures)
 # Recorded Rust DP-2 surface sizes of 2026-11-12. They depend on how many apps were open then, so they are printed as
-# REF information only; the size checks compare with the Rust dock measured in the same run (Marc, 2026-11-12).
+# REF information only; the size checks compare with Hyprswell measured in the same run (Marc, 2026-11-12).
 REST_SIZE = (921, 144)          # reflections rest and launcher left/right/center
 LAUNCHER_OFF_SIZE = (845, 144)  # launcher off
 AUTOHIDE_SIZE = (884, 132)      # auto-hide, surface fixed in both poses
@@ -79,7 +83,7 @@ HELPER_TIMEOUT = 6.0        # s for each helper answer (the helper itself gives 
 
 SRC_RECORDED = 'recorded Rust DP-2 capture, 2026-11-12'
 SRC_ANCHOR = 'riley dock/src/ui.rs:98-102'   # TOP layer, bottom anchor only (centred), bottom margin 0
-SRC_SAME_RUN = "Marc's decision 2026-11-12; Rust dock measured in this run"
+SRC_SAME_RUN = "Marc's decision 2026-11-12; Hyprswell measured in this run"
 SRC_CURSOR = "Marc's decision 2026-11-12 (the test may move the cursor on DP-2)"
 SRC_XML_ERRORS = 'docs/files.md section 4, Errors'
 
@@ -126,7 +130,7 @@ def namespace_layers(namespace):
 
 
 def dock_layers():
-    return namespace_layers(NAMESPACE)
+    return namespace_layers(NAMESPACE) + namespace_layers(REFERENCE_NAMESPACE)
 
 
 def marker_layers():
@@ -400,8 +404,8 @@ def xml_error_lines(text):
 # Each is one test dock, with the isolated config of the Rust gate it ports. "pins": None = no pins file,
 # "copy" = copy the session's pins file if there is one, "text" = always write it (empty if there is none).
 # "qt_config": what the Qt dock gets for the scenario's settings: "xml" = config.xml only (made by config_xml),
-# "conf" = riley.conf only, "invalid" = riley.conf and INVALID_CONFIG_XML. The Rust dock always gets riley.conf.
-# "rust": the Rust dock runs this scenario too. "ref": the Rust scenario this one's sizes are compared with.
+# "conf" = riley.conf only, "invalid" = riley.conf and INVALID_CONFIG_XML. Hyprswell always gets hyprswell.conf.
+# "rust": Hyprswell (the reference) runs this scenario too. "ref": the reference scenario this one's sizes are compared with.
 # "recorded": the recorded Rust size (REF information only). "hover": the scenario moves the pointer.
 
 def scenario(name, gate, config, pins, style, args, kind, size_check=False, zone=None, recorded=None,
@@ -511,7 +515,10 @@ def write_isolated(home, scn, label):
     for folder in (config, cache, state):
         folder.mkdir()
     if scn['config'] is not None:
-        if label == 'rust' or scn['qt_config'] in ('conf', 'invalid'):
+        if label == 'rust':
+            (config / 'nwg-dock-hyprland').mkdir()
+            (config / REFERENCE_CONFIG).write_text(scn['config'])
+        elif scn['qt_config'] in ('conf', 'invalid'):
             (config / 'nwg-dock-hyprland').mkdir()
             (config / 'nwg-dock-hyprland/riley.conf').write_text(scn['config'])
         if label == 'qt' and scn['qt_config'] in ('xml', 'invalid'):
@@ -519,9 +526,9 @@ def write_isolated(home, scn, label):
             text = INVALID_CONFIG_XML if scn['qt_config'] == 'invalid' else config_xml(scn['config'])
             (config / 'riley-dock/config.xml').write_text(text)
     if scn['style']:
-        # The Rust gates copy riley dock/style.example.css. The Rust dock built in that file as its fallback
-        # (riley dock/src/ui.rs:282-285), so it gets the same style without the copy; the Qt dock gets the XML file
-        # with the same values (docs/files.md, section 3.2).
+        # The Rust gates copy riley dock/style.example.css. Hyprswell builds in the same file, byte for byte, as its
+        # fallback for a missing hyprswell/style.css (hyprswell src/ui.rs:282-285), so it gets the same style without
+        # the copy; the Qt dock gets the XML file with the same values (docs/files.md, section 3.2).
         if label == 'qt':
             (config / 'riley-dock').mkdir(exist_ok=True)
             shutil.copyfile(ROOT / 'style.example.xml', config / 'riley-dock/style.xml')
@@ -782,10 +789,10 @@ def checks_for(scn, hover_on):
     """The checks of one scenario, as Check(scenario, what, function, expected, source, qt_only).
 
     A function takes the measurements of this scenario and a context (ctx['own'], the same dock's other scenarios;
-    ctx['rust'], the Rust dock's scenarios of this run; ctx['have_rust']), and returns (ok, actual) or
+    ctx['rust'], Hyprswell's scenarios of this run; ctx['have_rust']), and returns (ok, actual) or
     (ok, actual, expected) when the expected text depends on the session (DP-2's reserved area before the run, for
     example). A value that was not measured makes the check fail. A qt_only check is not evaluated for the Rust
-    dock (it compares with the Rust dock)."""
+    dock (it compares with Hyprswell)."""
     name, gate, kind = scn['name'], scn['gate'], scn['kind']
     rc = 'riley dock/gates/reflections_capture.py'
     ah = 'riley dock/gates/autohide_capture.py'
@@ -844,17 +851,17 @@ def checks_for(scn, hover_on):
     if scn['size_check']:
         def size_vs_rust(m, ctx, ref=scn['ref']):
             if not ctx['have_rust']:
-                raise Missing('needs RUST_DOCK')
+                raise Missing('needs HYPRSWELL')
             rust = ctx['rust'].get(ref) or {}
             if not rust.get('settled'):
-                raise Missing(f'the Rust dock\'s {ref} run measured no surface ({rust.get("why", "not run")})')
+                raise Missing(f'Hyprswell\'s {ref} run measured no surface ({rust.get("why", "not run")})')
             r, q = rust['settled'], need(m, 'settled')
-            expected = f'{size_text((r["w"], r["h"]))} (the Rust dock, {ref}, this run)'
+            expected = f'{size_text((r["w"], r["h"]))} (Hyprswell, {ref}, this run)'
             if need(m, 'apps') != need(rust, 'apps'):
                 return (False, f'{size_text((q["w"], q["h"]))}; app set changed between runs '
                                f'({snapshot_difference(rust["apps"], m["apps"])})', expected)
             return (q['w'], q['h']) == (r['w'], r['h']), size_text((q['w'], q['h'])), expected
-        add(first, 'surface size', size_vs_rust, f'as the Rust dock\'s {scn["ref"]} in this run', SRC_SAME_RUN,
+        add(first, 'surface size', size_vs_rust, f'as Hyprswell\'s {scn["ref"]} in this run', SRC_SAME_RUN,
             qt_only=True)
 
     def position(m, _):
@@ -1043,7 +1050,7 @@ def side_by_side(rust, qt, side):
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--qt-dock', required=True)
-    parser.add_argument('--rust-dock')
+    parser.add_argument('--hyprswell')
     parser.add_argument('--capture-dir', required=True)
     parser.add_argument('--pointer-tool', help='riley-dock-pointer (gates/pointer), needed unless --no-hover')
     parser.add_argument('--no-hover', action='store_true',
@@ -1052,7 +1059,7 @@ def main():
     capture_dir = Path(options.capture_dir).resolve()
     capture_dir.mkdir(parents=True, exist_ok=True)
     print(f'qt dock: {options.qt_dock}')
-    print(f'reference dock: {options.rust_dock or "none (the surface size checks need RUST_DOCK)"}')
+    print(f'reference dock: {options.hyprswell or "none (the surface size checks need HYPRSWELL)"}')
     print(f'captures: {capture_dir}')
     tool = None
     if not options.no_hover:
@@ -1062,7 +1069,7 @@ def main():
             return 1
         print(f'HOVER: this run moves the cursor on {OUTPUT} with {tool} (red ring, one notification first)')
     hover = Hover(tool, capture_dir)
-    have_rust = bool(options.rust_dock)
+    have_rust = bool(options.hyprswell)
 
     all_checks = [(scn, checks_for(scn, hover.enabled)) for scn in SCENARIOS]
     final_checks = gate_checks(hover)
@@ -1075,7 +1082,7 @@ def main():
         return dict(own=measures[label], rust=measures['rust'], have_rust=have_rust)
 
     for scn, checks in all_checks:
-        docks = ([('rust', options.rust_dock)] if have_rust and scn['rust'] else []) + [('qt', options.qt_dock)]
+        docks = ([('rust', options.hyprswell)] if have_rust and scn['rust'] else []) + [('qt', options.qt_dock)]
         for label, binary in docks:
             if stopped:
                 measures[label][scn['name']] = {'why': f'not run: stopped after a safety failure ({stopped})'}
@@ -1095,7 +1102,7 @@ def main():
                 stopped = m['unsafe']
                 print(f'FAIL safety: {m["unsafe"]}', flush=True)
             if label == 'rust':
-                print(f'REF {scn["name"]}: rust measured {summary(m)}', flush=True)
+                print(f'REF {scn["name"]}: hyprswell measured {summary(m)}', flush=True)
                 for check in checks:
                     if check.qt_only:
                         continue

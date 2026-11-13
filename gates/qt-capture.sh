@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Milestone 2 gate: the dock window on DP-2. Runs the Rust dock's capture gates (screens, reflections, launcher,
+# Capture gate: the dock window on DP-2. Runs the Rust dock's capture gates (screens, reflections, launcher,
 # auto-hide, each with its hover) against the Qt dock, one test dock at a time with an isolated config and a private
 # control socket, and compares the layer surface, DP-2's reserved area and the auto-hide reservation with fixed
-# expected values. The surface sizes are compared with the Rust dock measured in the same run.
+# expected values. The surface sizes are compared with Hyprswell (the Rust dock's successor) measured in the same run.
 #
-#   RUST_DOCK=/path/to/riley-dock gates/qt-capture.sh
+#   HYPRSWELL=/path/to/hyprswell gates/qt-capture.sh
 #                                     QT_DOCK defaults to $BUILD_DIR/riley-dock-qt, POINTER_TOOL to
 #                                     $BUILD_DIR/riley-dock-pointer, BUILD_DIR to
-#                                     ${XDG_CACHE_HOME:-$HOME/.cache}/riley-dock/build. The Rust dock runs each
-#                                     scenario first (REF lines, side-by-side PNGs); without RUST_DOCK the surface
+#                                     ${XDG_CACHE_HOME:-$HOME/.cache}/riley-dock/build. Hyprswell runs each
+#                                     scenario first (REF lines, side-by-side PNGs); without HYPRSWELL the surface
 #                                     size checks fail.
 #   CAPTURE_DIR=/some/dir             where the screenshots go (default $BUILD_DIR/captures/<time>)
 #   gates/qt-capture.sh --no-hover    leaves the pointer alone (no swell or held-open captures)
@@ -31,8 +31,8 @@ pointer_tool="${POINTER_TOOL:-$build_dir/riley-dock-pointer}"
 capture_dir="${CAPTURE_DIR:-$build_dir/captures/$(date +%Y%m%d-%H%M%S)}"
 
 args=(--qt-dock "$qt_dock" --capture-dir "$capture_dir")
-if [[ -n "${RUST_DOCK:-}" ]]; then
-    args+=(--rust-dock "$RUST_DOCK")
+if [[ -n "${HYPRSWELL:-}" ]]; then
+    args+=(--hyprswell "$HYPRSWELL")
 fi
 hover=1
 for arg in "$@"; do

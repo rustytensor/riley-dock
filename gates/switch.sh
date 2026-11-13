@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Milestone 3 gate: the switch. The installed Qt dock replaces the running Rust dock on the desktop's screens, with
-# the Rust dock kept as a one-command fallback.
+# The switch gate. The installed Qt dock (re)starts on the desktop's screens in place of the dock running there, with
+# the Go dock (nwg-dock-hyprland) as the one-command fallback. The Rust dock left Riley on 2026-11-12; its successor,
+# Hyprswell, is only the capture gate's reference.
 #
 #   LAUNCHER=/path/to/hypr-dock INSTALLED=/path/to/bin/riley-dock-qt BUILD_DIR=/path/to/build \
-#   RUST_DOCK=/path/to/riley-dock gates/switch.sh
+#   HYPRSWELL=/path/to/hyprswell gates/switch.sh
 #
-#   LAUNCHER     the desktop's dock launcher: "LAUNCHER restart" starts the Qt dock, "LAUNCHER --old" the Rust dock,
+#   LAUNCHER     the desktop's dock launcher: "LAUNCHER restart" starts the Qt dock, "LAUNCHER --old" the Go dock,
 #                "LAUNCHER --old --dry-run" prints "start: setsid -f <binary> ..." and starts and stops nothing
 #   INSTALLED    the installed riley-dock-qt
 #   BUILD_DIR    the build it was installed from (BUILD_DIR/riley-dock-qt, BUILD_DIR/riley-dock-pointer); the core gate
 #                builds afresh in BUILD_DIR/switch-core, logs go to BUILD_DIR/switch-gate
-#   RUST_DOCK    the Rust dock binary for the capture gate's reference runs
+#   HYPRSWELL    the Hyprswell binary for the capture gate's reference runs
 #   SCREENS      the screens the desktop's dock is on (default "DP-1 DP-3")
 #   CAPTURE_DIR  where the capture gate puts its screenshots (default: its own)
 #
@@ -20,17 +21,17 @@
 #   a. INSTALLED is an executable file with the same sha256 as BUILD_DIR/riley-dock-qt.
 #   b. tests/run-core.sh passes (GATE PASS 30/30) in a fresh build directory.
 #   c. gates/qt-capture.sh passes against INSTALLED (on DP-2; it moves the cursor there, see that script).
-#   d. Before the switch, read only: each of SCREENS has one riley-dock layer, owned by a dock that is not INSTALLED
-#      (the Rust dock); its position and size, the screen's reserved area, the owning process and the open windows
-#      are recorded.
+#   d. Before the switch, read only: each of SCREENS has one riley-dock layer (the Qt dock, possibly an older
+#      build); its position and size, the screen's reserved area, the owning process and the open windows are
+#      recorded.
 #   e. The switch, "LAUNCHER restart". Within 5 s each of SCREENS has exactly one riley-dock layer owned by INSTALLED,
 #      with the reserved area and the surface size recorded in d; the open windows are the same as in d; the dock
 #      still runs 5 s later; the dock log got no WARNING, CRITICAL or panicked line; no dock is on any other screen
-#      and no Rust or Go dock process is left.
-#   f. The fallback: "LAUNCHER --old --dry-run" names a binary that exists, is not INSTALLED, is the dock that ran
-#      before the switch, and answers --help with exit 0; the dry run stopped and started no dock.
-#   g. On any failure in e, or when the gate is stopped after e began, a trap runs "LAUNCHER --old", waits until the
-#      Rust dock's layers are on SCREENS again and prints "RESTORED: Rust dock back"; the gate then fails.
+#      and no Rust, Hyprswell or Go dock process is left.
+#   f. The fallback: "LAUNCHER --old --dry-run" names a binary that exists, is not INSTALLED, is the Go dock
+#      (nwg-dock-hyprland), and answers --help with exit 0; the dry run stopped and started no dock.
+#   g. On any failure in e, or when the gate is stopped after e began, a trap runs "LAUNCHER --old", waits until each
+#      of SCREENS has one Go dock layer (nwg-dock) and prints "RESTORED: Go dock back"; the gate then fails.
 #
 # The steps before e must all pass, or the switch is not made. Hyprland is only queried (layers, monitors, clients);
 # nothing is dispatched. Do not use the dock while e runs: a swell under the pointer changes the surface size.
@@ -41,17 +42,19 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 source_dir="$(cd "$here/.." && pwd -P)"
 
 # ---------------------------------------------------------------------------------------------------------------
-# Fixed values and their sources. Every other expected value is measured in step d (the Rust dock before the switch)
+# Fixed values and their sources. Every other expected value is measured in step d (the dock before the switch)
 # or is the sha256 of the build.
 # ---------------------------------------------------------------------------------------------------------------
 CORE_PASS='GATE PASS 30/30'   # tests/run-core.sh: the 29 Rust tests (riley dock/tests/*.rs, src/ipc.rs) and the grid-swell check
 NAMESPACE='riley-dock'        # the dock's layer namespace (riley dock/src/ui.rs; gates/qt_capture.py NAMESPACE)
+GO_NAMESPACE='nwg-dock'       # the Go dock's layer namespace (the desktop's blur rule)
+GO_DOCK='nwg-dock-hyprland'   # the fallback's binary name (riley ea5f243 bin/hypr-dock --old; Marc, 2026-11-12)
 DOCK_NAMESPACES='riley-dock nwg-dock'   # every dock's layer namespace (the desktop's blur rule names both)
 APPEAR_MS=5000                # the switch must be complete within 5 s (milestone 3 plan)
 ALIVE_MS=5000                 # and the dock must still run 5 s after that (milestone 3 plan)
 RESTORE_MS=15000              # time the fallback gets to put its layers back (3 s stop + start + screen choice)
 DIAGNOSTICS='WARNING|CRITICAL|panicked'   # riley dock/gates/reflections_capture.py:125; docs/files.md section 4
-OLD_DOCKS='riley-dock nwg-dock-hyprla'    # process names of the Rust and the Go dock (the launcher's docks())
+OLD_DOCKS='riley-dock hyprswell nwg-dock-hyprla'   # process names of the old Rust dock, Hyprswell and the Go dock
 
 passed=0
 total=0
@@ -72,7 +75,7 @@ finish() {
 }
 
 missing=()
-for name in LAUNCHER INSTALLED BUILD_DIR RUST_DOCK; do
+for name in LAUNCHER INSTALLED BUILD_DIR HYPRSWELL; do
     [[ -n "${!name:-}" ]] || missing+=("$name")
 done
 if (( ${#missing[@]} )); then
@@ -93,7 +96,7 @@ fi
 launcher="$LAUNCHER"
 installed="$INSTALLED"
 build_dir="$(cd "$BUILD_DIR" && pwd -P)"
-rust_dock="$RUST_DOCK"
+hyprswell="$HYPRSWELL"
 read -r -a screens <<< "${SCREENS:-DP-1 DP-3}"
 dock_log="${XDG_STATE_HOME:-$HOME/.local/state}/riley/dock.log"   # the launcher's log (riley dock/src/main.rs:16-22)
 work="$build_dir/switch-gate"
@@ -104,7 +107,7 @@ installed_real="$(readlink -f -- "$installed" || true)"
 # The launcher runs from the home folder, as the desktop starts it, and without this gate's variables, so the dock it
 # starts keeps nothing of the gate.
 run_launcher() {
-    (cd "$HOME" && env -u LAUNCHER -u INSTALLED -u BUILD_DIR -u RUST_DOCK -u SCREENS -u CAPTURE_DIR \
+    (cd "$HOME" && env -u LAUNCHER -u INSTALLED -u BUILD_DIR -u HYPRSWELL -u SCREENS -u CAPTURE_DIR \
         "$launcher" "$@" </dev/null)
 }
 
@@ -147,7 +150,7 @@ PY
 
 declare -A L_COUNT=() L_POS=() L_SIZE=() L_PID=() RES=()
 OTHER=()
-snapshot() {   # one read of layers and monitors into L_COUNT, L_POS, L_SIZE, L_PID, RES and OTHER
+snapshot() {   # one read of layers and monitors into L_COUNT, L_POS, L_SIZE, L_PID, RES and OTHER; $1: the namespace
     L_COUNT=() L_POS=() L_SIZE=() L_PID=() RES=() OTHER=()
     hq layers > "$work/layers.json" || return 1
     hq monitors > "$work/monitors.json" || return 1
@@ -159,7 +162,7 @@ snapshot() {   # one read of layers and monitors into L_COUNT, L_POS, L_SIZE, L_
             other) OTHER+=("$s:$a:pid $b") ;;
         esac
     done < <(python3 -I -c "$snapshot_py" "$work/layers.json" "$work/monitors.json" "${screens[*]}" \
-                 "$DOCK_NAMESPACES" "$NAMESPACE")
+                 "$DOCK_NAMESPACES" "${1:-$NAMESPACE}")
 }
 exe_of() { readlink -f -- "/proc/$1/exe" 2>/dev/null || true; }
 clients() { hq clients | python3 -I -c "$clients_py"; }
@@ -202,7 +205,7 @@ fi
 ok_c=0
 if (( ok_a )); then
     capture_status=0
-    capture_env=(BUILD_DIR="$build_dir" QT_DOCK="$installed" RUST_DOCK="$rust_dock")
+    capture_env=(BUILD_DIR="$build_dir" QT_DOCK="$installed" HYPRSWELL="$hyprswell")
     [[ -n "${CAPTURE_DIR:-}" ]] && capture_env+=(CAPTURE_DIR="$CAPTURE_DIR")
     env "${capture_env[@]}" "$source_dir/gates/qt-capture.sh" > "$work/capture.log" 2>&1 || capture_status=$?
     capture_line="$(grep -E '^GATE (PASS|FAIL)' "$work/capture.log" | tail -n 1 || true)"
@@ -216,7 +219,7 @@ else
     fail c "capture gate not run: the installed binary failed step a"
 fi
 
-# --- d. before the switch: the Rust dock, measured read only --------------------------------------------------------
+# --- d. before the switch: the running dock, measured read only -----------------------------------------------------
 # These measurements are the expected values of step e.
 declare -A D_POS=() D_SIZE=() D_RES=() D_PID=() D_EXE=()
 ok_d=1
@@ -226,10 +229,10 @@ for s in "${screens[@]}"; do
         D_POS[$s]=${L_POS[$s]}; D_SIZE[$s]=${L_SIZE[$s]}; D_RES[$s]=${RES[$s]}; D_PID[$s]=${L_PID[$s]}
         D_EXE[$s]="$(exe_of "${L_PID[$s]}")"
         pass "d1:$s" "before: one $NAMESPACE layer at ${D_POS[$s]} size ${D_SIZE[$s]}, reserved ${D_RES[$s]}, pid ${D_PID[$s]}"
-        if [[ -n "${D_EXE[$s]}" && "${D_EXE[$s]}" != "$installed_real" ]]; then
-            pass "d2:$s" "before: the dock is ${D_EXE[$s]} (not the installed Qt dock)"
+        if [[ -n "${D_EXE[$s]}" ]]; then
+            pass "d2:$s" "before: the dock is ${D_EXE[$s]}"
         else
-            fail "d2:$s" "before: the dock is '${D_EXE[$s]:-unknown}', expected the Rust dock, not $installed_real"
+            fail "d2:$s" "before: the dock's binary is unknown (pid ${D_PID[$s]})"
             ok_d=0
         fi
     else
@@ -249,18 +252,18 @@ restore() {
     run_launcher --old >/dev/null 2>&1 || true
     local deadline=$(( $(now_ms) + RESTORE_MS )) s back
     while :; do
-        snapshot || true
+        snapshot "$GO_NAMESPACE" || true
         back=1
         for s in "${screens[@]}"; do
-            [[ "${L_COUNT[$s]:-0}" == 1 && "$(exe_of "${L_PID[$s]:-0}")" == "${D_EXE[$s]}" ]] || back=0
+            [[ "${L_COUNT[$s]:-0}" == 1 && "$(basename -- "$(exe_of "${L_PID[$s]:-0}")")" == "$GO_DOCK" ]] || back=0
         done
         if (( back )); then
-            echo "RESTORED: Rust dock back"
+            echo "RESTORED: Go dock back"
             switch_state=restored
             return 0
         fi
         if (( $(now_ms) > deadline )); then
-            echo "NOT RESTORED: the Rust dock's layers are not back on ${screens[*]} after $((RESTORE_MS / 1000)) s; run: $launcher --old"
+            echo "NOT RESTORED: the Go dock's layers are not on ${screens[*]} after $((RESTORE_MS / 1000)) s; run: $launcher --old"
             switch_state=restored
             return 1
         fi
@@ -321,14 +324,14 @@ if (( ok_a && ok_b && ok_c && ok_d )); then
             efail "e2:$s" "owned by pid ${L_PID[$s]:-none} = '${exe:-unknown}', expected $installed_real (INSTALLED)"
         fi
         if [[ "${RES[$s]:-}" == "${D_RES[$s]}" ]]; then
-            pass "e3:$s" "reserved ${RES[$s]} (as the Rust dock before)"
+            pass "e3:$s" "reserved ${RES[$s]} (as the dock before)"
         else
-            efail "e3:$s" "reserved ${RES[$s]:-missing}, expected ${D_RES[$s]} (the Rust dock measured in d)"
+            efail "e3:$s" "reserved ${RES[$s]:-missing}, expected ${D_RES[$s]} (the dock measured in d)"
         fi
         if [[ "${L_SIZE[$s]:-}" == "${D_SIZE[$s]}" ]]; then
-            pass "e4:$s" "surface ${L_SIZE[$s]} (as the Rust dock before)"
+            pass "e4:$s" "surface ${L_SIZE[$s]} (as the dock before)"
         else
-            efail "e4:$s" "surface ${L_SIZE[$s]:-none}, expected ${D_SIZE[$s]} (the Rust dock measured in d)"
+            efail "e4:$s" "surface ${L_SIZE[$s]:-none}, expected ${D_SIZE[$s]} (the dock measured in d)"
         fi
     done
 
@@ -343,7 +346,7 @@ if (( ok_a && ok_b && ok_c && ok_d )); then
     if [[ "$e_pids" == "$d_pids" ]]; then
         pass e6 "dock processes for ${screens[*]}: $e_pids (as before)"
     else
-        efail e6 "dock processes for ${screens[*]}: $e_pids, expected $d_pids (the Rust dock in d)"
+        efail e6 "dock processes for ${screens[*]}: $e_pids, expected $d_pids (the dock in d)"
     fi
 
     sleep "$((ALIVE_MS / 1000))"
@@ -382,7 +385,7 @@ if (( ok_a && ok_b && ok_c && ok_d )); then
         for pid in $(pgrep -x "$n" || true); do left+="$n:$pid "; done
     done
     if [[ -z "$left" ]]; then
-        pass e10 "no Rust or Go dock process left"
+        pass e10 "no Rust, Hyprswell or Go dock process left"
     else
         efail e10 "old dock processes still run: $left, expected none"
     fi
@@ -418,24 +421,23 @@ if [[ -n "$fallback_real" && "$fallback_real" != "$installed_real" \
       && "$(sha256sum < "$fallback_real" | cut -d' ' -f1)" != "$(sha256sum 2>/dev/null < "$installed" | cut -d' ' -f1)" ]]; then
     pass f3 "the fallback is not the installed Qt dock"
 else
-    fail f3 "the fallback '${fallback_real:-none}' is the installed Qt dock or unreadable, expected the Rust dock"
+    fail f3 "the fallback '${fallback_real:-none}' is the installed Qt dock or unreadable, expected the Go dock"
 fi
 help_status=0
 if [[ -n "$fallback_real" ]]; then
-    # riley dock/src/main.rs:44-48: --help prints the usage and returns before any Hyprland or GTK call.
+    # Go's flag package: -help prints the usage and exits 0 before the dock starts.
     (cd "$work" && timeout 10 "$fallback_real" --help </dev/null > "$work/fallback-help.txt" 2>&1) || help_status=$?
 else
     help_status=127
 fi
-check "$(( help_status == 0 ))" f4 "$fallback --help exit 0" "$fallback --help exit $help_status, expected 0 (riley dock/src/main.rs:44-48)"
-same=1
-for s in "${screens[@]}"; do [[ "${D_EXE[$s]:-}" == "$fallback_real" && -n "$fallback_real" ]] || same=0; done
-check "$same" f5 "the fallback is the dock that ran before the switch" \
-    "the fallback '${fallback_real:-none}' is not the dock that ran before the switch ($(printf '%s ' "${D_EXE[@]:-none}"))"
+check "$(( help_status == 0 ))" f4 "$fallback --help exit 0" "$fallback --help exit $help_status, expected 0 (Go flag package: -help exits 0)"
+check "$( [[ -n "$fallback_real" && "$(basename -- "$fallback_real")" == "$GO_DOCK" ]] && echo 1 || echo 0)" f5 \
+    "the fallback is the Go dock ($GO_DOCK)" \
+    "the fallback '${fallback_real:-none}' is not the Go dock ($GO_DOCK; riley ea5f243 bin/hypr-dock --old)"
 check "$( [[ "$pids_before" == "$pids_after" ]] && echo 1 || echo 0)" f6 "the dry run stopped and started no dock (pids $pids_after)" \
     "dock pids changed during the dry run: '$pids_before' -> '$pids_after', expected unchanged (the launcher's --dry-run)"
 
 if [[ "$switch_state" == restored ]]; then
-    finish "the Rust dock was restored"
+    finish "the Go dock was restored"
 fi
 finish
