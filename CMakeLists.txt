@@ -60,3 +60,41 @@ riley_dock_test(tst_motion riley-dock-motion)
 riley_dock_test(tst_parity riley-dock-desktop riley-dock-pins riley-dock-rules)
 riley_dock_test(tst_reflections riley-dock-motion riley-dock-rules)
 riley_dock_test(tst_ipc riley-dock-ipc)
+
+# ---------------------------------------------------------------------------------------------------------------
+# Milestone 2: the window. riley-dock-qt is the Qt Quick front end (riley dock/src/main.rs, ui.rs, view.rs) on
+# layer-shell-qt, drawn from the core above. It is built under this name until the switch, so the running dock is
+# never replaced by a build.
+find_package(Qt6 6.11 REQUIRED COMPONENTS DBus Gui Qml Quick)
+find_package(LayerShellQt 6.8 REQUIRED)
+qt_policy(SET QTP0001 NEW)
+qt_policy(SET QTP0004 NEW)
+
+qt_add_executable(riley-dock-qt
+    src/app/main.cpp
+    src/app/log.cpp src/app/log.h
+    src/app/style.cpp src/app/style.h
+    src/app/filewatch.cpp src/app/filewatch.h
+    src/app/launch.cpp src/app/launch.h
+    src/app/iconprovider.cpp src/app/iconprovider.h
+    src/app/models.cpp src/app/models.h
+    src/app/dockwindow.cpp src/app/dockwindow.h
+    src/app/dockapp.cpp src/app/dockapp.h)
+
+# The QML files sit at the module root (qrc:/qt/qml/RileyDock/), so they name each other by type.
+set(riley_dock_qml
+    qml/Dock.qml qml/Icon.qml qml/Reflection.qml qml/HoverName.qml
+    qml/Menu.qml qml/Launcher.qml qml/Minimized.qml)
+foreach(file IN LISTS riley_dock_qml)
+    get_filename_component(alias "${file}" NAME)
+    set_source_files_properties("${file}" PROPERTIES QT_RESOURCE_ALIAS "${alias}")
+endforeach()
+
+qt_add_qml_module(riley-dock-qt
+    URI RileyDock
+    VERSION 1.0
+    QML_FILES ${riley_dock_qml})
+
+# The generated QML type registrations include the model headers by their bare names.
+target_include_directories(riley-dock-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
+target_link_libraries(riley-dock-qt PRIVATE Qt6::DBus Qt6::Gui Qt6::Qml Qt6::Quick LayerShellQt::Interface riley-dock-core)
