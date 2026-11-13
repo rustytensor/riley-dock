@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  The dock's config: $XDG_CONFIG_HOME/riley-dock/config.xml (docs/files.md section 1).
+  The dock carries this schema in its binary and validates the file against it every time it reads it. A file that
+  does not validate is not used at all (docs/files.md section 4, "Errors").
+
+  Every element is optional and may come in any order; a missing element takes its default. The meanings, ranges and
+  defaults are those of the old riley.conf keys (docs/files.md section 1.2).
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:c="urn:riley-dock:config"
+           targetNamespace="urn:riley-dock:config"
+           elementFormDefault="qualified">
+
+  <xs:element name="dock">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="icon-size" type="c:iconSize" minOccurs="0"/>
+        <xs:element name="screens" type="c:screens" minOccurs="0"/>
+        <xs:element name="reflections" type="xs:boolean" minOccurs="0"/>
+        <xs:element name="launcher" type="c:launcher" minOccurs="0"/>
+        <xs:element name="autohide" type="xs:boolean" minOccurs="0"/>
+      </xs:all>
+      <xs:attribute name="version" use="required">
+        <xs:annotation>
+          <xs:documentation>The format version. This schema is version 1.</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- ICON_SIZE: icon size in logical pixels, an unsigned 32-bit integer above 0. Default 44. -->
+  <xs:simpleType name="iconSize">
+    <xs:restriction base="xs:unsignedInt">
+      <xs:pattern value="\+?[0-9]+"/>
+      <xs:minInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- SCREENS: the screens that get a dock, each matched as a substring of the monitor description. Default: none,
+       which puts the dock on one screen (the top-left one). -->
+  <xs:complexType name="screens">
+    <xs:sequence>
+      <xs:element name="screen" type="c:screen" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- One part of the old comma-separated SCREENS list: one line, no comma, not only spaces. The dock trims it. -->
+  <xs:simpleType name="screen">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[^,\r\n]*[^,\s][^,\r\n]*"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- LAUNCHER: where the app-grid button goes in the row. Default left. -->
+  <xs:simpleType name="launcher">
+    <xs:restriction base="xs:token">
+      <xs:enumeration value="left"/>
+      <xs:enumeration value="right"/>
+      <xs:enumeration value="center"/>
+      <xs:enumeration value="off"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

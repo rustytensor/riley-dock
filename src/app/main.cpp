@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // riley-dock-qt: the command line, the --show client and the startup screen choice. Mirrors riley dock/src/main.rs.
+#include "app/config.h"
 #include "app/dockapp.h"
 #include "app/log.h"
 
@@ -125,10 +126,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // riley dock/src/main.rs:65-90: which screens get a dock. SCREENS is read once, at start.
-    const QString config = QDir(app::homePath("XDG_CONFIG_HOME", QStringLiteral(".config")))
-                               .filePath(QStringLiteral("nwg-dock-hyprland/riley.conf"));
-    const QStringList filters = rules::screenFilters(app::readTextOrEmpty(config));
+    // riley dock/src/main.rs:65-90: which screens get a dock. SCREENS is read once, at start, from config.xml or
+    // riley.conf (docs/files.md section 1.1).
+    const QStringList filters = app::loadConfig(app::configPaths(), std::nullopt).config.screens;
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     std::optional<rules::ScreenSelection> pending;
     QStringList selected;

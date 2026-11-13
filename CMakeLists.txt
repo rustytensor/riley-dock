@@ -67,6 +67,9 @@ riley_dock_test(tst_ipc riley-dock-ipc)
 # never replaced by a build.
 find_package(Qt6 6.11 REQUIRED COMPONENTS DBus Gui Qml Quick)
 find_package(LayerShellQt 6.8 REQUIRED)
+# libxml2 (MIT) parses and validates the dock's XML files; only src/app uses it, the core never does.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBXML2 REQUIRED IMPORTED_TARGET libxml-2.0>=2.14)
 qt_policy(SET QTP0001 NEW)
 qt_policy(SET QTP0004 NEW)
 
@@ -74,6 +77,8 @@ qt_add_executable(riley-dock-qt
     src/app/main.cpp
     src/app/log.cpp src/app/log.h
     src/app/style.cpp src/app/style.h
+    src/app/xmlfile.cpp src/app/xmlfile.h
+    src/app/config.cpp src/app/config.h
     src/app/filewatch.cpp src/app/filewatch.h
     src/app/launch.cpp src/app/launch.h
     src/app/iconprovider.cpp src/app/iconprovider.h
@@ -98,3 +103,20 @@ qt_add_qml_module(riley-dock-qt
 # The generated QML type registrations include the model headers by their bare names.
 target_include_directories(riley-dock-qt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/src/app")
 target_link_libraries(riley-dock-qt PRIVATE Qt6::DBus Qt6::Gui Qt6::Qml Qt6::Quick LayerShellQt::Interface riley-dock-core)
+target_link_libraries(riley-dock-qt PRIVATE PkgConfig::LIBXML2)
+target_compile_definitions(riley-dock-qt PRIVATE RILEY_DOCK_PROGRAM="riley-dock-qt")
+
+# The schemas the XML files are validated against are part of the binary (:/riley-dock/schemas/), never read from
+# an install path.
+qt_add_resources(riley-dock-qt riley_dock_schemas
+    PREFIX /riley-dock
+    FILES schemas/config.xsd schemas/style.xsd)
+
+# ---------------------------------------------------------------------------------------------------------------
+# Gate tools: riley-dock-pointer (gates/pointer/), the pointer helper of gates/qt-capture.sh. Built next to
+# riley-dock-qt, never installed.
+option(RILEY_DOCK_GATE_TOOLS "Build the capture gate's helper tools (never installed)" ON)
+if(RILEY_DOCK_GATE_TOOLS)
+    enable_language(C)   # the wayland-scanner protocol code is C
+    add_subdirectory(gates/pointer)
+endif()

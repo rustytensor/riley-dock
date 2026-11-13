@@ -1,16 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/style.h"
 
-#include "app/log.h"
-
-#include <QtCore/QFile>
-#include <QtCore/QFileInfo>
-#include <QtCore/QJsonDocument>
-#include <QtCore/QJsonObject>
-#include <QtCore/QJsonParseError>
-
-#include <cmath>
-#include <limits>
+#include "app/xmlfile.h"
 
 namespace riley::dock::app {
 
@@ -24,27 +15,28 @@ struct Key {
     const char *defaultValue; // colours and families as text, sizes as decimal text
 };
 
-// docs/files.md section 3.2 "Keys"; the defaults equal style.example.json and riley dock/style.example.css.
+// docs/files.md section 3.2 "Elements", by element name; the defaults equal style.example.xml and riley
+// dock/style.example.css.
 constexpr Key KEYS[] = {
-    {"bar_background", Kind::Color, "#1a1b26b8"},
-    {"bar_foreground", Kind::Color, "#c0caf5"},
-    {"bar_border", Kind::Color, "#7aa2f759"},
-    {"bar_border_width", Kind::Size, "1"},
-    {"bar_radius", Kind::Size, "18"},
+    {"bar-background", Kind::Color, "#1a1b26b8"},
+    {"bar-foreground", Kind::Color, "#c0caf5"},
+    {"bar-border", Kind::Color, "#7aa2f759"},
+    {"bar-border-width", Kind::Size, "1"},
+    {"bar-radius", Kind::Size, "18"},
     {"accent", Kind::Color, "#7aa2f7"},
     {"shelf", Kind::Color, "#7aa2f72e"},
-    {"active_line", Kind::Color, "#7aa2f7"},
-    {"active_line_width", Kind::Size, "3"},
-    {"name_background", Kind::Color, "#1a1b26f0"},
-    {"name_foreground", Kind::Color, "#c0caf5"},
-    {"name_border", Kind::Color, "#7aa2f74d"},
-    {"name_border_width", Kind::Size, "1"},
-    {"name_radius", Kind::Size, "8"},
-    {"name_padding_x", Kind::Size, "11"},
-    {"name_padding_y", Kind::Size, "4"},
-    {"name_font_family", Kind::Family, "Inter"},
-    {"name_font_size", Kind::FontSize, "12"},
-    {"menu_padding", Kind::Size, "6"},
+    {"active-line", Kind::Color, "#7aa2f7"},
+    {"active-line-width", Kind::Size, "3"},
+    {"name-background", Kind::Color, "#1a1b26f0"},
+    {"name-foreground", Kind::Color, "#c0caf5"},
+    {"name-border", Kind::Color, "#7aa2f74d"},
+    {"name-border-width", Kind::Size, "1"},
+    {"name-radius", Kind::Size, "8"},
+    {"name-padding-x", Kind::Size, "11"},
+    {"name-padding-y", Kind::Size, "4"},
+    {"name-font-family", Kind::Family, "Inter"},
+    {"name-font-size", Kind::FontSize, "12"},
+    {"menu-padding", Kind::Size, "6"},
 };
 
 QVariant defaultOf(const Key &key)
@@ -58,32 +50,26 @@ QVariant defaultOf(const Key &key)
     return {};
 }
 
-std::optional<QVariant> valueOf(const Key &key, const QJsonValue &value)
+const QString STYLE_SCHEMA = QStringLiteral(":/riley-dock/schemas/style.xsd");
+
+// The text of an element of a file that validated against schemas/style.xsd, so it is well formed and in range.
+QVariant valueOf(const Key &key, const QString &text)
 {
+    const QString value = collapseWhitespace(text);
     switch (key.kind) {
     case Kind::Color:
-        if (!value.isString())
-            return std::nullopt;
-        if (const auto color = DockStyle::parseColor(value.toString()))
+        if (const auto color = DockStyle::parseColor(value))
             return QVariant::fromValue(*color);
-        return std::nullopt;
+        return defaultOf(key);
     case Kind::Size:
     case Kind::FontSize: {
-        if (!value.isDouble())
-            return std::nullopt;
-        const double number = value.toDouble();
-        const double least = key.kind == Kind::FontSize ? 1 : 0;
-        if (!std::isfinite(number) || number != std::floor(number) || number < least
-            || number > std::numeric_limits<int>::max())
-            return std::nullopt;
-        return static_cast<int>(number);
+        bool ok = false;
+        const int number = (value.startsWith(u'+') ? value.mid(1) : value).toInt(&ok, 10);
+        return ok ? QVariant(number) : defaultOf(key);
     }
-    case Kind::Family:
-        if (!value.isString() || value.toString().isEmpty())
-            return std::nullopt;
-        return value.toString();
+    case Kind::Family: return value;
     }
-    return std::nullopt;
+    return defaultOf(key);
 }
 
 int hexDigit(QChar c)
@@ -128,35 +114,21 @@ void DockStyle::reset()
 
 void DockStyle::load(const QString &path)
 {
+    const XmlRead read = readValidated(path, STYLE_SCHEMA);
+    if (read.status == XmlRead::Status::Error) {
+        // Keep the style in use: the defaults at start, else the last file that was read without an error.
+        reportFileError("style", path, read.error);
+        return;
+    }
+    clearFileError(path);
     reset();
-    QFile file(path);
-    if (!QFileInfo::exists(path)) {
-        Q_EMIT changed(); // missing file: every default, no message
-        return;
-    }
-    if (!file.open(QIODevice::ReadOnly)) {
-        log(QStringLiteral("style %1: %2; using the default style").arg(path, file.errorString()));
-        Q_EMIT changed();
-        return;
-    }
-    QJsonParseError error;
-    const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &error);
-    if (error.error != QJsonParseError::NoError || !document.isObject()) {
-        log(QStringLiteral("style %1: %2; using the default style")
-                .arg(path, error.error != QJsonParseError::NoError ? error.errorString()
-                                                                    : QStringLiteral("not a JSON object")));
-        Q_EMIT changed();
-        return;
-    }
-    const QJsonObject object = document.object();
-    for (const Key &key : KEYS) {
-        const QString name = QString::fromLatin1(key.name);
-        if (!object.contains(name))
-            continue;
-        if (const auto value = valueOf(key, object.value(name)))
-            m_values.insert(name, *value);
-        else
-            log(QStringLiteral("style %1: bad value for %2; using its default").arg(path, name));
+    if (read.status == XmlRead::Status::Ok) {
+        for (const XmlElement &element : read.root.children) {
+            for (const Key &key : KEYS) {
+                if (element.name == QLatin1StringView(key.name))
+                    m_values.insert(element.name, valueOf(key, element.text));
+            }
+        }
     }
     Q_EMIT changed();
 }

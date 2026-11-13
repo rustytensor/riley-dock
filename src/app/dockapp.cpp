@@ -86,13 +86,14 @@ bool DockApp::start(const QStringList &outputs)
     State &s = m_state;
     const QDir config(homePath("XDG_CONFIG_HOME", QStringLiteral(".config")));
     s.pinsPath = QDir(homePath("XDG_CACHE_HOME", QStringLiteral(".cache"))).filePath(QStringLiteral("nwg-dock-pinned"));
-    s.configPath = config.filePath(QStringLiteral("nwg-dock-hyprland/riley.conf"));
-    s.stylePath = config.filePath(QStringLiteral("riley-dock/style.json"));
-    const QString preferences = readTextOrEmpty(s.configPath);
-    s.size = rules::iconSize(preferences);
-    s.reflections = rules::reflectionsEnabled(preferences, s.reflectionsAllowed);
-    s.launcher = grid::position(preferences);
-    const bool hide = autohide::enabled(preferences);
+    s.configPaths = configPaths();
+    s.stylePath = config.filePath(QStringLiteral("riley-dock/style.xml"));
+    // Read again at start, as riley dock/src/ui.rs:78 does; an error main() already wrote is not written twice.
+    s.config = loadConfig(s.configPaths, std::nullopt);
+    s.size = s.config->config.iconSize;
+    s.reflections = s.reflectionsAllowed && s.config->config.reflections;
+    s.launcher = s.config->config.launcher;
+    const bool hide = s.config->config.autohide;
     s.autohide = hide;
     m_style.load(s.stylePath);
     chooseIconTheme();
@@ -162,13 +163,22 @@ bool DockApp::start(const QStringList &outputs)
             log(QStringLiteral("control socket %1: %2").arg(*m_controlPath, failure->message));
     }
 
-    // riley dock/src/ui.rs:207-229: the style redraws; the pins and the config refresh the icons.
+    // riley dock/src/ui.rs:207-229: the style redraws; the pins and the config refresh the icons. Both config files
+    // are watched: either one can decide the settings (docs/files.md section 1.1). The config is read here, once per
+    // change, so a broken config.xml writes its error line once, not on every refresh.
     auto *style = new FileWatch(s.stylePath, this);
     connect(style, &FileWatch::changed, this, [this] { m_style.load(m_state.stylePath); });
     m_watches.append(style);
-    for (const QString &path : {s.pinsPath, s.configPath}) {
+    auto *pinsWatch = new FileWatch(s.pinsPath, this);
+    connect(pinsWatch, &FileWatch::changed, this, [this] {
+        m_state.refreshIcons = true;
+        refresh();
+    });
+    m_watches.append(pinsWatch);
+    for (const QString &path : {s.configPaths.xml, s.configPaths.conf}) {
         auto *watch = new FileWatch(path, this);
         connect(watch, &FileWatch::changed, this, [this] {
+            m_state.config = loadConfig(m_state.configPaths, m_state.config);
             m_state.refreshIcons = true;
             refresh();
         });
@@ -252,13 +262,13 @@ void DockApp::refresh()
     bool reflections = s.reflections;
     grid::Position launcher = s.launcher;
     bool hide = s.autohide;
-    if (s.refreshIcons) {
-        const QString preferences = readTextOrEmpty(s.configPath);
+    if (s.refreshIcons && s.config) {
+        const DockConfig &config = s.config->config;
         pinned = pins::load(s.pinsPath).value_or(s.pinned);
-        size = rules::iconSize(preferences);
-        reflections = rules::reflectionsEnabled(preferences, s.reflectionsAllowed);
-        launcher = grid::position(preferences);
-        hide = autohide::enabled(preferences);
+        size = config.iconSize;
+        reflections = s.reflectionsAllowed && config.reflections;
+        launcher = config.launcher;
+        hide = config.autohide;
     }
     // The Settings switch is applied live, without a restart that would unreserve and re-reserve.
     if (hide != s.autohide) {

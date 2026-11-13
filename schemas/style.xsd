@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  The Qt dock's style: $XDG_CONFIG_HOME/riley-dock/style.xml (docs/files.md section 3.2). Colours, one font and a
+  few sizes; the style never changes the dock's surface size, input region or reserved space.
+  The dock carries this schema in its binary and validates the file against it every time it reads it. A file that
+  does not validate is not used at all (docs/files.md section 4, "Errors").
+
+  Every element is optional and may come in any order; a missing element takes its default.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:s="urn:riley-dock:style"
+           targetNamespace="urn:riley-dock:style"
+           elementFormDefault="qualified">
+
+  <xs:element name="style">
+    <xs:complexType>
+      <xs:all>
+        <xs:element name="bar-background" type="s:colour" minOccurs="0"/>
+        <xs:element name="bar-foreground" type="s:colour" minOccurs="0"/>
+        <xs:element name="bar-border" type="s:colour" minOccurs="0"/>
+        <xs:element name="bar-border-width" type="s:size" minOccurs="0"/>
+        <xs:element name="bar-radius" type="s:size" minOccurs="0"/>
+        <xs:element name="accent" type="s:colour" minOccurs="0"/>
+        <xs:element name="shelf" type="s:colour" minOccurs="0"/>
+        <xs:element name="active-line" type="s:colour" minOccurs="0"/>
+        <xs:element name="active-line-width" type="s:size" minOccurs="0"/>
+        <xs:element name="name-background" type="s:colour" minOccurs="0"/>
+        <xs:element name="name-foreground" type="s:colour" minOccurs="0"/>
+        <xs:element name="name-border" type="s:colour" minOccurs="0"/>
+        <xs:element name="name-border-width" type="s:size" minOccurs="0"/>
+        <xs:element name="name-radius" type="s:size" minOccurs="0"/>
+        <xs:element name="name-padding-x" type="s:size" minOccurs="0"/>
+        <xs:element name="name-padding-y" type="s:size" minOccurs="0"/>
+        <xs:element name="name-font-family" type="s:fontFamily" minOccurs="0"/>
+        <xs:element name="name-font-size" type="s:fontSize" minOccurs="0"/>
+        <xs:element name="menu-padding" type="s:size" minOccurs="0"/>
+      </xs:all>
+      <xs:attribute name="version" use="required">
+        <xs:annotation>
+          <xs:documentation>The format version. This schema is version 1.</xs:documentation>
+        </xs:annotation>
+        <xs:simpleType>
+          <xs:restriction base="xs:token">
+            <xs:enumeration value="1"/>
+          </xs:restriction>
+        </xs:simpleType>
+      </xs:attribute>
+    </xs:complexType>
+  </xs:element>
+
+  <!-- #rrggbb (opaque) or #rrggbbaa, hexadecimal digits in either case. The alpha byte comes last, as in CSS. -->
+  <xs:simpleType name="colour">
+    <xs:restriction base="xs:token">
+      <xs:pattern value="#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A length in logical pixels (CSS px): a whole number, 0 or more. -->
+  <xs:simpleType name="size">
+    <xs:restriction base="xs:int">
+      <xs:pattern value="\+?[0-9]+"/>
+      <xs:minInclusive value="0"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- A font size in pixels (CSS font-size in px, Qt font.pixelSize): a whole number, 1 or more. -->
+  <xs:simpleType name="fontSize">
+    <xs:restriction base="xs:int">
+      <xs:pattern value="\+?[0-9]+"/>
+      <xs:minInclusive value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <!-- One font family name without quotes, for example Inter. Runs of spaces count as one space. -->
+  <xs:simpleType name="fontFamily">
+    <xs:restriction base="xs:token">
+      <xs:minLength value="1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+</xs:schema>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  The Qt dock's style, $XDG_CONFIG_HOME/riley-dock/style.xml. Riley's theme switcher writes it.
+  Schema: schemas/style.xsd. Every value below is the default (the same as the Rust dock's style.example.css);
+  leave an element out to get its default.
+  Colours are #rrggbb or #rrggbbaa (alpha last, as in CSS). Sizes are whole logical pixels.
+-->
+<style xmlns="urn:riley-dock:style" version="1">
+  <!-- The bar -->
+  <bar-background>#1a1b26b8</bar-background>   <!-- glass fill: #1a1b26 at alpha 0.72 -->
+  <bar-foreground>#c0caf5</bar-foreground>     <!-- symbolic icons, app-grid dots at rest -->
+  <bar-border>#7aa2f759</bar-border>           <!-- outline: #7aa2f7 at alpha 0.35 -->
+  <bar-border-width>1</bar-border-width>
+  <bar-radius>18</bar-radius>
+
+  <!-- Running dots, lip dots, app-grid hover colour -->
+  <accent>#7aa2f7</accent>
+  <!-- The 1 px line the reflections stand on: #7aa2f7 at alpha 0.18 -->
+  <shelf>#7aa2f72e</shelf>
+  <!-- The line under the focused app -->
+  <active-line>#7aa2f7</active-line>
+  <active-line-width>3</active-line-width>
+
+  <!-- The hover name label -->
+  <name-background>#1a1b26f0</name-background> <!-- #1a1b26 at alpha 0.94 -->
+  <name-foreground>#c0caf5</name-foreground>
+  <name-border>#7aa2f74d</name-border>         <!-- #7aa2f7 at alpha 0.3 -->
+  <name-border-width>1</name-border-width>
+  <name-radius>8</name-radius>
+  <name-padding-x>11</name-padding-x>
+  <name-padding-y>4</name-padding-y>
+  <name-font-family>Inter</name-font-family>
+  <name-font-size>12</name-font-size>          <!-- pixels -->
+
+  <!-- Padding inside the right-click menu -->
+  <menu-padding>6</menu-padding>
+</style>

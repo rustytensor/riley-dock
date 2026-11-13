@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  The dock's config, $XDG_CONFIG_HOME/riley-dock/config.xml. Riley's Settings (Dock page) writes it.
+  Schema: schemas/config.xsd. Every value below is the default; leave an element out to get its default.
+-->
+<dock xmlns="urn:riley-dock:config" version="1">
+  <!-- Icon size in pixels, 1 or more. -->
+  <icon-size>44</icon-size>
+
+  <!-- The screens that get a dock: a screen matches when its monitor description contains the text. With no screen
+       listed (or none matching) the dock goes on one screen, the top-left one. Read at start only.
+       Example: <screen>DELL U3824DW</screen> -->
+  <screens/>
+
+  <!-- Icon reflections on the shelf: true or false. -->
+  <reflections>true</reflections>
+
+  <!-- Where the app-grid button goes: left, right, center or off. -->
+  <launcher>left</launcher>
+
+  <!-- Auto-hide: the dock slides away and leaves a 6 px lip: true or false. -->
+  <autohide>false</autohide>
+</dock>

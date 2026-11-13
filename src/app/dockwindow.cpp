@@ -160,6 +160,14 @@ void DockWindow::rebuild(const QList<Icon> &icons, const QStringList &oldIds, co
 
 bool DockWindow::frame()
 {
+    // GTK synthesizes a motion event at the unchanged pointer position after every relayout, and the Rust view
+    // relayouts on every scene update (riley dock/src/view.rs:234, queue_allocate), so on the next frame the Rust
+    // dock runs pointer() again against the rectangles it last drew (dock/src/ui.rs:607-609, :705-725). Without it
+    // an icon stays hovered (name label, shadow) after the swell has moved it out from under a still pointer.
+    if (m_pointer) {
+        const QPointF p = *m_pointer;
+        pointer(p.x(), p.y());
+    }
     const double now = monotonicSeconds();
     State &s = m_app.state();
     const bool reflections = s.reflections;

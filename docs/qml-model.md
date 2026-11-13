@@ -87,7 +87,7 @@ once per frame and only when something changed.
 |---|---|---|
 | `items` | DockItems | The dock's slots, in row order. |
 | `menu` | DockMenu | This dock's menu. |
-| `style` | DockStyle | The colours, fonts and sizes from `style.json`, shared by all docks. |
+| `style` | DockStyle | The colours, fonts and sizes from `style.xml`, shared by all docks. |
 | `output` | string | The screen's name, for example `DP-2`. |
 
 ## DockItems (list model of `dock.items`)
@@ -161,20 +161,20 @@ the dock surface as the GTK popover did. When the compositor dismisses it, `visi
 
 ## DockStyle (`dock.style`)
 
-The keys of `style.json` (docs/files.md, section 3.2), with their defaults when a key is missing or bad. All of them
-share one signal, `changed`, and are re-read when the file changes.
+The elements of `style.xml` (docs/files.md, section 3.2), with their defaults when an element is missing. All of
+them share one signal, `changed`, and are re-read when the file changes; a file that does not validate changes none.
 
-| Property | Type | Key |
+| Property | Type | Element |
 |---|---|---|
-| `barBackground`, `barForeground`, `barBorder` | color | `bar_background`, `bar_foreground`, `bar_border` |
-| `barBorderWidth`, `barRadius` | int | `bar_border_width`, `bar_radius` |
-| `accent`, `shelf`, `activeLine` | color | `accent`, `shelf`, `active_line` |
-| `activeLineWidth` | int | `active_line_width` |
-| `nameBackground`, `nameForeground`, `nameBorder` | color | `name_background`, `name_foreground`, `name_border` |
-| `nameBorderWidth`, `nameRadius`, `namePaddingX`, `namePaddingY` | int | `name_border_width`, `name_radius`, `name_padding_x`, `name_padding_y` |
-| `nameFontFamily` | string | `name_font_family` |
-| `nameFontSize` | int (pixels, `font.pixelSize`) | `name_font_size` |
-| `menuPadding` | int | `menu_padding` |
+| `barBackground`, `barForeground`, `barBorder` | color | `bar-background`, `bar-foreground`, `bar-border` |
+| `barBorderWidth`, `barRadius` | int | `bar-border-width`, `bar-radius` |
+| `accent`, `shelf`, `activeLine` | color | `accent`, `shelf`, `active-line` |
+| `activeLineWidth` | int | `active-line-width` |
+| `nameBackground`, `nameForeground`, `nameBorder` | color | `name-background`, `name-foreground`, `name-border` |
+| `nameBorderWidth`, `nameRadius`, `namePaddingX`, `namePaddingY` | int | `name-border-width`, `name-radius`, `name-padding-x`, `name-padding-y` |
+| `nameFontFamily` | string | `name-font-family` |
+| `nameFontSize` | int (pixels, `font.pixelSize`) | `name-font-size` |
+| `menuPadding` | int | `menu-padding` |
 
 ## What stays in C++
 

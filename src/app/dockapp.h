@@ -5,6 +5,7 @@
 // menus (:751-851), perform and dispatch (:862-901).
 #pragma once
 
+#include "app/config.h"
 #include "app/style.h"
 
 #include <riley-dock/control.h>
@@ -59,7 +60,8 @@ struct State {
     QList<SignatureEntry> signature;
     QStringList pinned;
     QString pinsPath;
-    QString configPath;
+    ConfigPaths configPaths;
+    std::optional<LoadedConfig> config;  // the settings in use (docs/files.md section 1.1)
     QString stylePath;
     quint32 size = 44;
     bool swell = true;
