@@ -169,6 +169,53 @@ private slots:
         QCOMPARE(grid::position(QStringLiteral("LAUNCHER=right")), Position::Right);               // rs:90
         QCOMPARE(grid::position(QStringLiteral("LAUNCHER=off")), Position::Off);                   // rs:91
     }
+
+    // Not a Rust port: the pointer on the grid button swells no icon. Expected values worked out by hand.
+    // Layout: surface 400, rest 40, gap 8, side padding 10, five slots: bar width 5*40 + 4*8 + 20 = 252,
+    // bar.x = (400 - 252)/2 = 74, slot x = 84, 132, 180, 228, 276, centres 104, 152, 200, 248, 296.
+    // Swell: 1 + 0.3*(1 + cos(pi*d/2.5)) for d = |pointer - centre|/40 < 2.5, else 1:
+    //   d 0 -> 1.6, 0.6 -> 1.5186905882264234, 1.2 -> 1.3188371558587941, 1.8 -> 1.1087728030753932,
+    //   2.4 -> 1.0023655896056567, 3.0 and 3.6 -> 1.0.
+    void grid_button_stops_the_swell()
+    {
+        const LayoutConfig config{.surfaceWidth = 400.0, .restWidth = 40.0, .gap = 8.0, .sidePadding = 10.0,
+                                  .barY = 64.0, .barHeight = 56.0, .restBottom = 104.0};
+        QList<rules::DockItem> apps;
+        for (const char *id : {"A", "B", "C", "D"})
+            apps.append(rules::DockItem{QString::fromLatin1(id), {}});
+        const QList<double> ones(5, 1.0);
+        const QList<double> still{1.0, 1.0, 1.0, 1.0, 1.0};
+        const auto check = [](const QList<double> &actual, const QList<double> &expected) {
+            QCOMPARE(actual.size(), expected.size());
+            for (qsizetype i = 0; i < expected.size(); ++i)
+                NEAR(actual[i], expected[i]);
+        };
+
+        // LAUNCHER=center: 4 apps put the grid at ceil(4/2) = 2, rest rect x 180..220.
+        const auto centre = launcherIndex(grid::placeItems(apps, Position::Center));
+        QCOMPARE(centre, std::optional<qsizetype>(2));
+        const motion::Layout centreRest = grid::layout(config, ones, centre);
+        NEAR(centreRest.icons[2].x, 180.0);
+        for (const double x : {200.0, 180.0, 220.0}) // centre, left edge, right edge
+            check(grid::pointerScales(centreRest, x, 40.0, centre), still);
+        // In the gap right of the grid (x 224): the usual swell, grid slot 1.0.
+        check(grid::pointerScales(centreRest, 224.0, 40.0, centre),
+              {1.0, 1.1087728030753932, 1.0, 1.5186905882264234, 1.1087728030753932});
+        // On the next icon's centre (x 248).
+        check(grid::pointerScales(centreRest, 248.0, 40.0, centre),
+              {1.0, 1.0023655896056567, 1.0, 1.6, 1.3188371558587941});
+
+        // LAUNCHER=left: the grid at the start, index 0, rest rect x 84..124.
+        const auto start = launcherIndex(grid::placeItems(apps, Position::Left));
+        QCOMPARE(start, std::optional<qsizetype>(0));
+        const motion::Layout startRest = grid::layout(config, ones, start);
+        NEAR(startRest.icons[0].x, 84.0);
+        for (const double x : {104.0, 84.0, 124.0}) // centre, left edge, right edge
+            check(grid::pointerScales(startRest, x, 40.0, start), still);
+        // On the next icon's centre (x 152).
+        check(grid::pointerScales(startRest, 152.0, 40.0, start),
+              {1.0, 1.6, 1.3188371558587941, 1.0023655896056567, 1.0});
+    }
 };
 
 QTEST_GUILESS_MAIN(tst_launcher)

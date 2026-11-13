@@ -18,7 +18,7 @@
 #
 # Checks, in order:
 #   a. INSTALLED is an executable file with the same sha256 as BUILD_DIR/riley-dock-qt.
-#   b. tests/run-core.sh passes (GATE PASS 29/29) in a fresh build directory.
+#   b. tests/run-core.sh passes (GATE PASS 30/30) in a fresh build directory.
 #   c. gates/qt-capture.sh passes against INSTALLED (on DP-2; it moves the cursor there, see that script).
 #   d. Before the switch, read only: each of SCREENS has one riley-dock layer, owned by a dock that is not INSTALLED
 #      (the Rust dock); its position and size, the screen's reserved area, the owning process and the open windows
@@ -44,7 +44,7 @@ source_dir="$(cd "$here/.." && pwd -P)"
 # Fixed values and their sources. Every other expected value is measured in step d (the Rust dock before the switch)
 # or is the sha256 of the build.
 # ---------------------------------------------------------------------------------------------------------------
-CORE_PASS='GATE PASS 29/29'   # tests/run-core.sh: the 29 Rust tests (riley dock/tests/*.rs, src/ipc.rs)
+CORE_PASS='GATE PASS 30/30'   # tests/run-core.sh: the 29 Rust tests (riley dock/tests/*.rs, src/ipc.rs) and the grid-swell check
 NAMESPACE='riley-dock'        # the dock's layer namespace (riley dock/src/ui.rs; gates/qt_capture.py NAMESPACE)
 DOCK_NAMESPACES='riley-dock nwg-dock'   # every dock's layer namespace (the desktop's blur rule names both)
 APPEAR_MS=5000                # the switch must be complete within 5 s (milestone 3 plan)

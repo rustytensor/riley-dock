@@ -208,10 +208,7 @@ bool DockWindow::frame()
         if (m_pointer) {
             m_leaving.reset();
             const motion::Layout rest = grid::layout(config, ones, gridIndex);
-            QList<double> centres;
-            for (const motion::Rect &r : rest.icons)
-                centres.append(r.x + r.width / 2.0);
-            const QList<double> targets = motion::pointerScales(centres, m_pointer->x(), config.restWidth);
+            const QList<double> targets = grid::pointerScales(rest, m_pointer->x(), config.restWidth, gridIndex);
             for (qsizetype i = 0; i < targets.size(); ++i) {
                 const double target = targets[i];
                 if (gridIndex == i) {

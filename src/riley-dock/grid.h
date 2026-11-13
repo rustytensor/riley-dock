@@ -40,6 +40,12 @@ qsizetype appCount(const QList<rules::DockItem> &items);
 motion::Layout layout(const motion::LayoutConfig &config, const QList<double> &scales,
                       std::optional<qsizetype> grid);
 
+// Swell targets with the grid button in the row. rest is the unswelled layout (grid::layout with all scales 1.0);
+// the scales are motion::pointerScales of its icon centres, with the grid slot always 1.0. While the pointer's x
+// lies on the grid button's rest rectangle (both edges included), no icon swells: every scale is 1.0.
+QList<double> pointerScales(const motion::Layout &rest, std::optional<double> pointerX, double restWidth,
+                            std::optional<qsizetype> grid);
+
 // riley dock/src/grid.rs:42 reflection(rect). motion::reflection(rect, rect.y + rect.height): mirrored about its
 // own bottom.
 motion::Reflection reflection(motion::Rect rect);

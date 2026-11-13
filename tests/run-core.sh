@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Milestone 1 gate: build the core and its Qt Test ports of the 29 Rust tests, run them, and pass only when exactly
-# those 29 test functions ran and all passed.
+# Core gate: build the core, its Qt Test ports of the 29 Rust tests and one hand-worked check (the grid button
+# stops the swell), run them, and pass only when exactly those 30 test functions ran and all passed.
 #
 #   tests/run-core.sh                 build in ${XDG_CACHE_HOME:-$HOME/.cache}/riley-dock/core-build
 #   BUILD_DIR=/some/dir tests/run-core.sh
 #
-# Prints one line per test function, then "GATE PASS 29/29" (exit 0) or "GATE FAIL ..." (exit 1). Build and test
+# Prints one line per test function, then "GATE PASS 30/30" (exit 0) or "GATE FAIL ..." (exit 1). Build and test
 # output goes to logs in the build directory.
 set -euo pipefail
 
@@ -15,7 +15,8 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 source_dir="$(cd "$here/.." && pwd -P)"
 build_dir="${BUILD_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/riley-dock/core-build}"
 
-# The 29 Rust tests, in Rust file order: <test executable>::<Rust test name>.
+# The 29 Rust tests in Rust file order, plus grid_button_stops_the_swell (not a Rust port):
+# <test executable>::<test name>.
 expected=(
     tst_autohide::a_hidden_lip_is_exactly_six_pixels
     tst_autohide::geometry_dots_and_zones
@@ -28,6 +29,7 @@ expected=(
     tst_launcher::grid_positions_and_fixed_frame
     tst_launcher::grid_dots_and_animation
     tst_launcher::grid_preferences
+    tst_launcher::grid_button_stops_the_swell
     tst_motion::cosine_at_hand_worked_distances
     tst_motion::packed_icons_and_exact_click_through_region
     tst_motion::leave_spring_and_idle_deadline
@@ -128,7 +130,7 @@ for key in "${!result[@]}"; do
         ran=$((ran + 1))
     else
         extra+=("$key")
-        echo "FAIL $key (not one of the $total Rust tests)"
+        echo "FAIL $key (not one of the $total expected tests)"
     fi
 done
 

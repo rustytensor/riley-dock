@@ -132,6 +132,25 @@ motion::Layout layout(const motion::LayoutConfig &config, const QList<double> &s
     return result;
 }
 
+QList<double> pointerScales(const motion::Layout &rest, std::optional<double> pointerX, double restWidth,
+                            std::optional<qsizetype> grid)
+{
+    QList<double> centres;
+    centres.reserve(rest.icons.size());
+    for (const motion::Rect &r : rest.icons)
+        centres.append(r.x + r.width / 2.0);
+    const bool inGrid = grid && *grid >= 0 && *grid < rest.icons.size();
+    if (inGrid && pointerX) {
+        const motion::Rect &r = rest.icons[*grid];
+        if (*pointerX >= r.x && *pointerX <= r.x + r.width)
+            pointerX.reset(); // on the grid button: every icon rests
+    }
+    QList<double> scales = motion::pointerScales(centres, pointerX, restWidth);
+    if (inGrid)
+        scales[*grid] = 1.0;
+    return scales;
+}
+
 // riley dock/src/grid.rs:42
 motion::Reflection reflection(motion::Rect rect)
 {
