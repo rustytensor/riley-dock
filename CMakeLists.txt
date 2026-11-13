@@ -112,6 +112,11 @@ qt_add_resources(riley-dock-qt riley_dock_schemas
     PREFIX /riley-dock
     FILES schemas/config.xsd schemas/style.xsd)
 
+# Install: riley-dock-qt into bin/, and nothing else. The core libraries are static and linked in, the QML files and
+# the schemas are resources inside the binary, and the tests and gate tools are never installed.
+include(GNUInstallDirs)
+install(TARGETS riley-dock-qt RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+
 # ---------------------------------------------------------------------------------------------------------------
 # Gate tools: riley-dock-pointer (gates/pointer/), the pointer helper of gates/qt-capture.sh. Built next to
 # riley-dock-qt, never installed.
