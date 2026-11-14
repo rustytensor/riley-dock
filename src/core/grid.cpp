@@ -172,16 +172,16 @@ std::pair<std::array<motion::Point, 9>, double> dots(motion::Rect rect, Look loo
 // riley dock/src/grid.rs:74
 Look Animation::target() const
 {
-    return m_hovered ? Look{1.2, 1.0} : Look{};
+    return m_hovered ? Look{HOVER_SPACING, 1.0} : Look{};
 }
 
 // riley dock/src/grid.rs:78
 std::pair<Look, bool> Animation::evaluate(double now)
 {
     const Look target = this->target();
-    const double t = std::clamp((now - m_began) / 0.15, 0.0, 1.0);
-    const double u = 1.0 - t;
-    const double q = 1.0 - u * u * u; // f64::powi(3): (u*u)*u
+    const double t = std::clamp((now - m_began) / HOVER_SECONDS, 0.0, 1.0);
+    const double u = 2.0 - 2.0 * t;
+    const double q = t < 0.5 ? 4.0 * t * t * t : 1.0 - u * u * u / 2.0; // cubic ease-in-out
     Look look{m_from.spacing + (target.spacing - m_from.spacing) * q,
               m_from.accent + (target.accent - m_from.accent) * q};
     bool active = t < 1.0 && m_from != target;

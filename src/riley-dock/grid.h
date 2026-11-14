@@ -63,6 +63,16 @@ struct Look {
 // y + height/2 + (i/3)*step - step); radius = size/16.
 std::pair<std::array<motion::Point, 9>, double> dots(motion::Rect rect, Look look);
 
+// The hover look (Marc, 2026-11-13: "when the mouse cursor hovers over it, make the dots slightly spread apart
+// without hitting the other icons - just make it look good and smooth"). The Rust dock spread to 1.2 in 0.15 s with a
+// cubic ease-out, which starts at three times the mean speed and reads as a jump. Now 1.4 in 0.18 s with a cubic
+// ease-in-out. The outermost dot edge lies size * (spacing/4 + 1/16) from the centre, so the dots stay inside the
+// button's own square while spacing < 1.75: at 1.4, 0.4125 * size (44 px button: 18.15 px of 22).
+inline constexpr double HOVER_SPACING = 1.4;
+inline constexpr double HOVER_SECONDS = 0.18;
+// The largest spacing whose dots stay inside the button: 4 * (1/2 - 1/16).
+inline constexpr double SLOT_SPACING = 1.75;
+
 // riley dock/src/grid.rs:60 grid::Sample { look, active, launch }.
 struct Sample {
     Look look;
@@ -95,11 +105,11 @@ public:
     Sample sample(double now);
 
 private:
-    // riley dock/src/grid.rs:74 target(). hovered ? Look{1.2, 1.0} : Look{}.
+    // riley dock/src/grid.rs:74 target(). hovered ? Look{HOVER_SPACING, 1.0} : Look{}.
     Look target() const;
 
-    // riley dock/src/grid.rs:78 evaluate(now). t = clamp((now - began)/0.15, 0, 1), q = 1 - (1-t)^3 (cubic
-    // ease-out); look = from + (target - from)*q per field; active = t < 1 && from != target. Then pressed ->
+    // riley dock/src/grid.rs:78 evaluate(now). t = clamp((now - began)/HOVER_SECONDS, 0, 1), q = 4t^3 for t < 1/2,
+    // else 1 - (2 - 2t)^3/2 (cubic ease-in-out); look = from + (target - from)*q per field; active = t < 1 && from != target. Then pressed ->
     // spacing = 0.6; else a spring (start, s) gives spacing = s.sample(now - start).value, active |= sample.active,
     // and the spring is dropped once its sample is inactive. Stores look; returns (look, active).
     std::pair<Look, bool> evaluate(double now);

@@ -129,11 +129,17 @@ private slots:
                              Point{52.0, 101.0}, Point{62.0, 101.0}, Point{42.0, 111.0}, Point{52.0, 111.0},
                              Point{62.0, 111.0}})); // rs:53
         NEAR(radius, 2.5); // rs:55
-        const auto [hover, r] = grid::dots(rect, Look{1.2, 1.0});
-        QCOMPARE(hover, (Dots{Point{40.0, 89.0}, Point{52.0, 89.0}, Point{64.0, 89.0}, Point{40.0, 101.0},
-                              Point{52.0, 101.0}, Point{64.0, 101.0}, Point{40.0, 113.0}, Point{52.0, 113.0},
-                              Point{64.0, 113.0}})); // rs:57
+        // The hover look changed on Marc's word (2026-11-13, "make the dots slightly spread apart ... smooth"):
+        // spacing 1.4 (was 1.2, rs:57) in 0.18 s with a cubic ease-in-out (was 0.15 s ease-out, rs:68-82). Values
+        // below worked out by hand from that rule; the press (0.6) and release spring (motion.rs:191) are unchanged.
+        // Hover: step = 40/4 * 1.4 = 14 about the centre 52,101.
+        const auto [hover, r] = grid::dots(rect, Look{grid::HOVER_SPACING, 1.0});
+        QCOMPARE(hover, (Dots{Point{38.0, 87.0}, Point{52.0, 87.0}, Point{66.0, 87.0}, Point{38.0, 101.0},
+                              Point{52.0, 101.0}, Point{66.0, 101.0}, Point{38.0, 115.0}, Point{52.0, 115.0},
+                              Point{66.0, 115.0}}));
         NEAR(r, 2.5); // rs:59
+        // Outermost edge at full hover: 14 + 2.5 = 16.5 from the centre, inside the 20 px half-square.
+        NEAR(hover[8].first + r - 52.0, 16.5);
         const auto pressed = grid::dots(rect, Look{0.6, 1.0}).first;
         QCOMPARE(pressed, (Dots{Point{46.0, 95.0}, Point{52.0, 95.0}, Point{58.0, 95.0}, Point{46.0, 101.0},
                                 Point{52.0, 101.0}, Point{58.0, 101.0}, Point{46.0, 107.0}, Point{52.0, 107.0},
@@ -141,23 +147,37 @@ private slots:
         Animation animation;
         QVERIFY(!animation.sample(0.0).active); // rs:64
         animation.setHover(true, 0.0);
-        const grid::Sample halfway = animation.sample(0.075);
-        // Cubic ease-out at half duration: 1-(1/2)^3=.875 => step11.75.
-        NEAR(halfway.look.spacing * 10.0, 11.75); // rs:68
-        NEAR(halfway.look.accent, 0.875);         // rs:69
-        QVERIFY(!animation.sample(0.15).active);  // rs:70
-        animation.press(0.15);
-        NEAR(animation.sample(0.15).look.spacing * 10.0, 6.0); // rs:72
-        animation.release(0.15, true);
-        // Existing spring at140ms: target12 + (12-6)/7.5 =12.8.
-        NEAR(animation.sample(0.29).look.spacing * 10.0, 12.8); // rs:75
-        const grid::Sample done = animation.sample(0.5);
-        NEAR(done.look.spacing * 10.0, 12.0);  // rs:77
+        // Quarter time t = 1/4: q = 4/64 = 0.0625 => spacing 1.025. Half time: q = 1/2 => spacing 1.2.
+        const grid::Sample quarter = animation.sample(0.045);
+        NEAR(quarter.look.spacing * 10.0, 10.25);
+        NEAR(quarter.look.accent, 0.0625);
+        const grid::Sample halfway = animation.sample(0.09);
+        NEAR(halfway.look.spacing * 10.0, 12.0);
+        NEAR(halfway.look.accent, 0.5);
+        QVERIFY(animation.sample(0.17).active);
+        QVERIFY(!animation.sample(0.18).active);
+        animation.press(0.18);
+        NEAR(animation.sample(0.18).look.spacing * 10.0, 6.0); // rs:72
+        animation.release(0.18, true);
+        // The spring 0.6 -> 1.4 at 140 ms (a half period): 1.4 + 0.8/7.5.
+        NEAR(animation.sample(0.32).look.spacing * 10.0, 14.0 + 8.0 / 7.5);
+        const grid::Sample done = animation.sample(0.6);
+        NEAR(done.look.spacing * 10.0, 14.0);  // rs:77
         QVERIFY(!done.active && done.launch);  // rs:78
-        QVERIFY(!animation.sample(0.6).launch); // rs:79 One launch decision per accepted click.
-        animation.setHover(false, 0.6);
-        NEAR(animation.sample(0.675).look.spacing * 10.0, 10.25); // rs:81
-        QVERIFY(!animation.sample(0.75).active); // rs:82
+        QVERIFY(!animation.sample(0.65).launch); // rs:79 One launch decision per accepted click.
+        animation.setHover(false, 0.7);
+        NEAR(animation.sample(0.79).look.spacing * 10.0, 12.0);
+        QVERIFY(!animation.sample(0.88).active);
+        // The release spring's overshoot never pushes the dots out of the button: every millisecond below
+        // SLOT_SPACING (1.75 = 4 * (1/2 - 1/16)).
+        Animation spring;
+        spring.setHover(true, 0.0);
+        spring.press(0.2);
+        spring.release(0.2, false);
+        double most = 0.0;
+        for (int ms = 200; ms <= 600; ++ms)
+            most = std::max(most, spring.sample(ms / 1000.0).look.spacing);
+        QVERIFY2(most > grid::HOVER_SPACING && most < grid::SLOT_SPACING, qPrintable(QString::number(most)));
     }
 
     // Source: riley dock/tests/launcher.rs:86 grid_preferences
