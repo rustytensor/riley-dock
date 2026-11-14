@@ -14,8 +14,10 @@
   <bar-border-width>1</bar-border-width>
   <bar-radius>18</bar-radius>
 
-  <!-- Running dots, lip dots, app-grid hover colour -->
+  <!-- Running dots of pinned apps, lip dots, app-grid hover colour -->
   <accent>#7aa2f7</accent>
+  <!-- Running dots of open apps that are not pinned. Leave it out to use bar-foreground. -->
+  <unpinned-dot>#c0caf5</unpinned-dot>
   <!-- The 1 px line the reflections stand on: #7aa2f7 at alpha 0.18 -->
   <shelf>#7aa2f72e</shelf>
   <!-- The line under the focused app -->

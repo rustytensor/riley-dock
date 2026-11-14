@@ -381,6 +381,7 @@ void DockWindow::update(const Scene &scene, const motion::LayoutConfig &config, 
         row.symbolic = icon.symbolic;
         row.launcher = icon.grid.has_value();
         row.running = i < s.items.size() && !s.items[i].windows.isEmpty();
+        row.pinned = !row.launcher && s.pinned.contains(row.itemId);
         row.focused = icon.active;
         row.minimized = icon.indicator == rules::Indicator::Hollow;
         row.indicator = int(icon.indicator);

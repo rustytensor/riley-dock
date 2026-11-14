@@ -12,7 +12,7 @@ enum class Kind { Color, Size, FontSize, Family };
 struct Key {
     const char *name;
     Kind kind;
-    const char *defaultValue; // colours and families as text, sizes as decimal text
+    const char *defaultValue; // colours and families as text, sizes as decimal text; nullptr: see DockStyle
 };
 
 // docs/files.md section 3.2 "Elements", by element name; the defaults equal style.example.xml and riley
@@ -24,6 +24,7 @@ constexpr Key KEYS[] = {
     {"bar-border-width", Kind::Size, "1"},
     {"bar-radius", Kind::Size, "18"},
     {"accent", Kind::Color, "#7aa2f7"},
+    {"unpinned-dot", Kind::Color, nullptr}, // no default of its own: bar-foreground's colour (DockStyle::unpinnedDot)
     {"shelf", Kind::Color, "#7aa2f72e"},
     {"active-line", Kind::Color, "#7aa2f7"},
     {"active-line-width", Kind::Size, "3"},
@@ -41,6 +42,8 @@ constexpr Key KEYS[] = {
 
 QVariant defaultOf(const Key &key)
 {
+    if (!key.defaultValue)
+        return {};
     switch (key.kind) {
     case Kind::Color: return QVariant::fromValue(*DockStyle::parseColor(QString::fromLatin1(key.defaultValue)));
     case Kind::Size:
@@ -108,8 +111,10 @@ std::optional<QColor> DockStyle::parseColor(const QString &text)
 void DockStyle::reset()
 {
     m_values.clear();
-    for (const Key &key : KEYS)
-        m_values.insert(QString::fromLatin1(key.name), defaultOf(key));
+    for (const Key &key : KEYS) {
+        if (key.defaultValue)
+            m_values.insert(QString::fromLatin1(key.name), defaultOf(key));
+    }
 }
 
 void DockStyle::load(const QString &path)

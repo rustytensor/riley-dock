@@ -91,9 +91,10 @@ Item {
             }
         }
 
-        // Running dots (view.rs:139-153), in style.accent: filled discs of radius dotRadius, or, when every window
-        // is minimized, that circle stroked hollowLineWidth wide. Cairo strokes on the path, half the width on
-        // each side, so the ring runs from dotRadius - w/2 to dotRadius + w/2.
+        // Running dots (view.rs:139-153): filled discs of radius dotRadius, or, when every window is minimized, that
+        // circle stroked hollowLineWidth wide. Cairo strokes on the path, half the width on each side, so the ring
+        // runs from dotRadius - w/2 to dotRadius + w/2. A pinned app's dots are style.accent, those of an open app
+        // that is not pinned style.unpinnedDot (Marc, 2026-11-13).
         Repeater {
             model: root.dock.items
             delegate: Item {
@@ -101,6 +102,8 @@ Item {
                 required property rect rect
                 required property var dots
                 required property bool minimized
+                required property bool pinned
+                readonly property color dotColor: pinned ? root.dock.style.accent : root.dock.style.unpinnedDot
                 readonly property real outer: minimized ? root.dock.dotRadius + root.dock.hollowLineWidth / 2
                                                         : root.dock.dotRadius
                 Repeater {
@@ -112,8 +115,8 @@ Item {
                         width: 2 * slot.outer
                         height: width
                         radius: slot.outer
-                        color: slot.minimized ? "transparent" : root.dock.style.accent
-                        border.color: root.dock.style.accent
+                        color: slot.minimized ? "transparent" : slot.dotColor
+                        border.color: slot.dotColor
                         border.width: slot.minimized ? root.dock.hollowLineWidth : 0
                     }
                 }

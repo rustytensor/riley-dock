@@ -30,6 +30,7 @@ struct ItemData {
     bool symbolic = false;   // the icon name ends in "-symbolic": paint it in style.barForeground
     bool launcher = false;   // the app-grid button (Launcher.qml), never an app icon
     bool running = false;    // has windows (minimized ones count)
+    bool pinned = false;     // its id is in the pins file (the launcher: false); picks the running dots' colour
     bool focused = false;    // one of its windows is the active window
     bool minimized = false;  // every window is minimized (indicator Hollow)
     int indicator = 0;       // rules::Indicator: 0 None, 1 One, 2 Two, 3 Hollow
@@ -64,6 +65,7 @@ public:
         FocusedRole, MinimizedRole, IndicatorRole, DotsRole, RectRole, DrawRectRole, BounceRole, ScaleRole,
         HoveredRole, ShadowRole, ReflectedRole, ReflectionImageRole, ReflectionClipRole, ReflectionFlipYRole,
         ReflectionStopsRole, GridDotsRole, GridDotRadiusRole, GridAccentRole, GridSpacingRole,
+        PinnedRole,
     };
     Q_ENUM(Role)
 

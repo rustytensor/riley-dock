@@ -261,7 +261,8 @@ the Rust dock uses it.
 | `bar-border` | colour | `#7aa2f759` | The bar's outline | `.dock-bar` `border: 1px solid alpha(#7aa2f7, 0.35)` (:6) | view.rs:90 |
 | `bar-border-width` | size | `1` | Width of that outline | same (:6) | view.rs:90 |
 | `bar-radius` | size | `18` | Corner radius of the bar | `.dock-bar` `border-radius` (:7) | view.rs:90 |
-| `accent` | colour | `#7aa2f7` | Running-app dots, the auto-hide lip dots and the app-grid button's hover colour | `.dock-indicator` `color` (:16) | view.rs:89, :93, :141, :164-166 |
+| `accent` | colour | `#7aa2f7` | Running dots of pinned apps, the auto-hide lip dots and the app-grid button's hover colour | `.dock-indicator` `color` (:16) | view.rs:89, :93, :141, :164-166 |
+| `unpinned-dot` | colour | `bar-foreground`'s colour | Running dots of open apps that are not pinned (Marc, 2026-11-13). Qt dock only | none | none |
 | `shelf` | colour | `#7aa2f72e` | The 1 px shelf line the reflections stand on | `.dock-shelf` `background: alpha(#7aa2f7, 0.18)` (:15) | view.rs:64-67, :126 |
 | `active-line` | colour | `#7aa2f7` | The line under the focused app | `.dock-item.active` `border-bottom: 3px solid #7aa2f7` (:17) | view.rs:68-77, :154 |
 | `active-line-width` | size | `3` | Thickness of that line | same (:17) | view.rs:68-77 |
@@ -280,7 +281,8 @@ The theme switcher's values for the same elements today: `bar-background` and `n
 (alpha 0.72 and 0.94), `bar-foreground` and `name-foreground` its `fg_bright`, `accent`, `active-line` and `shelf`
 its `accent` (alpha 1, 1 and 0.18), `bar-border` and `name-border` its `accent` (alpha 0.35 and 0.3), and
 `name-font-family` the theme's dock font, `Inter` by default (riley bin/hypr-theme.py:62, :321-334). Its font-only
-update (riley bin/hypr-theme.py:107-108) changes `name-font-family` alone.
+update (riley bin/hypr-theme.py:107-108) changes `name-font-family` alone. It does not write `unpinned-dot`, which
+then follows `bar-foreground`.
 
 #### CSS that is not carried over
 

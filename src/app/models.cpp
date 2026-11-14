@@ -43,6 +43,7 @@ QVariant DockItems::data(const QModelIndex &index, int role) const
     case GridDotRadiusRole: return row.gridDotRadius;
     case GridAccentRole: return row.gridAccent;
     case GridSpacingRole: return row.gridSpacing;
+    case PinnedRole: return row.pinned;
     default: return {};
     }
 }
@@ -57,7 +58,7 @@ QHash<int, QByteArray> DockItems::roleNames() const
         {ShadowRole, "shadow"}, {ReflectedRole, "reflected"}, {ReflectionImageRole, "reflectionImage"},
         {ReflectionClipRole, "reflectionClip"}, {ReflectionFlipYRole, "reflectionFlipY"},
         {ReflectionStopsRole, "reflectionStops"}, {GridDotsRole, "gridDots"}, {GridDotRadiusRole, "gridDotRadius"},
-        {GridAccentRole, "gridAccent"}, {GridSpacingRole, "gridSpacing"},
+        {GridAccentRole, "gridAccent"}, {GridSpacingRole, "gridSpacing"}, {PinnedRole, "pinned"},
     };
 }
 

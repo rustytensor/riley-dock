@@ -26,6 +26,7 @@ class DockStyle : public QObject {
     Q_PROPERTY(int barBorderWidth READ barBorderWidth NOTIFY changed)      // bar-border-width
     Q_PROPERTY(int barRadius READ barRadius NOTIFY changed)                // bar-radius
     Q_PROPERTY(QColor accent READ accent NOTIFY changed)                   // accent
+    Q_PROPERTY(QColor unpinnedDot READ unpinnedDot NOTIFY changed)         // unpinned-dot
     Q_PROPERTY(QColor shelf READ shelf NOTIFY changed)                     // shelf
     Q_PROPERTY(QColor activeLine READ activeLine NOTIFY changed)           // active-line
     Q_PROPERTY(int activeLineWidth READ activeLineWidth NOTIFY changed)    // active-line-width
@@ -55,6 +56,12 @@ public:
     int barBorderWidth() const { return size("bar-border-width"); }
     int barRadius() const { return size("bar-radius"); }
     QColor accent() const { return color("accent"); }
+    // The running dot of an open app that is not pinned. Without the element: bar-foreground's colour, which is
+    // never the accent in Riley's themes and follows the theme.
+    QColor unpinnedDot() const
+    {
+        return m_values.contains(QStringLiteral("unpinned-dot")) ? color("unpinned-dot") : barForeground();
+    }
     QColor shelf() const { return color("shelf"); }
     QColor activeLine() const { return color("active-line"); }
     int activeLineWidth() const { return size("active-line-width"); }
