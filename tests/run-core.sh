@@ -36,6 +36,7 @@ expected=(
     tst_motion::click_multiplier_and_return
     tst_parity::pins_replace_file_and_preserve_order
     tst_parity::pinned_then_workspace_and_class_order
+    tst_parity::special_workspace_without_id
     tst_parity::clicks_restore_before_considering_focus
     tst_parity::indicators_and_hover_lines
     tst_parity::icon_configuration_and_integer_shrink

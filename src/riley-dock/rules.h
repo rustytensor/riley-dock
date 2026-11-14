@@ -24,7 +24,12 @@
 
 namespace riley::dock::rules {
 
-// riley dock/src/rules.rs:4 struct Workspace { id: i64, name: String }
+// The id a special workspace gets when hyprctl leaves it out (Hyprland 0.57 does, for every special workspace):
+// -99, the first special id older Hyprland versions reported, so such windows still sort before workspace 1.
+inline constexpr qint64 SPECIAL_WORKSPACE_ID = -99;
+
+// riley dock/src/rules.rs:4 struct Workspace { id: i64, name: String }. A workspace object without "id" is accepted
+// only when its "type" is "special"; it then gets SPECIAL_WORKSPACE_ID.
 struct Workspace {
     qint64 id = 0;
     QString name;

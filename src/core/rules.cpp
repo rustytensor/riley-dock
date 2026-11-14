@@ -174,6 +174,17 @@ std::optional<QList<QJsonValue>> structFields(const QJsonValue &value, std::init
 
 std::optional<Workspace> workspaceFromJson(const QJsonValue &value)
 {
+    // Hyprland 0.57 leaves "id" out for a special workspace: {"address": "special:minimized", "type": "special",
+    // "name": "special:minimized"} (hyprctl clients -j, 2026-11-13). Such a workspace gets SPECIAL_WORKSPACE_ID, so
+    // one minimized window no longer makes the whole window list fail (the dock then kept its old list).
+    if (value.isObject()) {
+        const QJsonObject object = value.toObject();
+        if (!object.contains(u"id"_s) && object.value(u"type"_s) == QJsonValue(u"special"_s)) {
+            if (const auto name = jsonString(object.value(u"name"_s)))
+                return Workspace{SPECIAL_WORKSPACE_ID, *name};
+            return std::nullopt;
+        }
+    }
     const auto fields = structFields(value, {u"id", u"name"});
     if (!fields)
         return std::nullopt;

@@ -130,6 +130,29 @@ private slots:
                                                 {u"0xa1"_s}, {u"0xb1"_s}, {u"0xc1"_s}})); // rs:73
     }
 
+    // Source: hyprctl clients -j on Hyprland 0.57.2, 2026-11-13 (Marc's session): a window minimized to
+    // special:minimized has a workspace without "id". Before the fix the whole list failed ("j/clients: invalid
+    // JSON") and the dock kept its old window list, so open apps that are not pinned were missing.
+    void special_workspace_without_id()
+    {
+        const auto clients = rules::clientsFromJson(R"json([
+            {"address":"0x55dbf2087140","class":"virt-manager","title":"AlmaLinux 10 Workstation on QEMU/KVM",
+             "workspace":{"address":"special:minimized","type":"special","name":"special:minimized"}},
+            {"address":"0x55dbf1f8e3a0","class":"nemo","title":"Home","workspace":{"address":"1","id":1,"type":"normal","name":"1"}}
+        ])json");
+        QVERIFY(clients.has_value());
+        QCOMPARE(clients->size(), 2);
+        QCOMPARE((*clients)[0].workspace, (rules::Workspace{-99, u"special:minimized"_s}));
+        QCOMPARE((*clients)[1].workspace, (rules::Workspace{1, u"1"_s}));
+        QCOMPARE(rules::indicator(clients->mid(0, 1)), Indicator::Hollow);
+        const QList<rules::DockItem> items = rules::items({u"nemo"_s}, *clients);
+        QCOMPARE(items.size(), 3); // launcher, the pin nemo, then virt-manager (not pinned)
+        QCOMPARE(items[2].id, u"virt-manager"_s);
+        // Only a special workspace may leave out its id.
+        QVERIFY(!rules::clientsFromJson(R"json([{"address":"0x1","class":"a","title":"t",
+            "workspace":{"address":"1","type":"normal","name":"1"}}])json"));
+    }
+
     // Source: riley dock/tests/parity.rs:78 clicks_restore_before_considering_focus
     void clicks_restore_before_considering_focus()
     {
